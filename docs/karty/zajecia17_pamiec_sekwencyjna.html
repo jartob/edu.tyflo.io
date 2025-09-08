@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zajęcia 17 – Pamięć sekwencyjna (sekwencje kierunków)</title>
+<style>
+  :root { --scale: 1.0; --accent:#FFC857; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#000; color:#fff; font-size:calc(18px * var(--scale)); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: calc(2rem * var(--scale)); margin: 0 0 8px; }
+  .note { font-size: calc(1rem * var(--scale)); color:#ffe6a9; }
+  .controls { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
+  label { display:block; margin-bottom:6px; }
+  input[type="number"], input[type="range"], select, button { width:100%; padding:12px 14px; font-size:calc(1rem * var(--scale)); background:#000; color:#fff; border:2px solid var(--accent); border-radius:12px; }
+  button.primary { background:var(--accent); color:#000; border-color:var(--accent); font-weight:800; cursor:pointer; }
+  .panel { border:2px solid var(--accent); border-radius:16px; background:#111; padding:16px; margin-bottom:14px; }
+  .display { border:3px dashed var(--accent); border-radius:16px; min-height: 30vh; display:flex; align-items:center; justify-content:center; text-align:center; padding:16px; position:relative; gap:12px; flex-wrap:wrap; }
+  .board { display:grid; grid-template-columns: repeat(2, 1fr); gap:12px; width: min(560px, 90vw); }
+  .pad { border:3px solid var(--accent); border-radius:16px; padding:28px; min-height:120px; font-size:calc(2.6rem * var(--scale)); display:flex; align-items:center; justify-content:center; background:#000; color:#fff; user-select:none; }
+  .pad.active { box-shadow:0 0 12px var(--accent), inset 0 0 20px rgba(255,200,87,.35); transform: scale(1.02); }
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:10px; margin-top:12px; }
+  .stat { background:#111; border:1px solid #333; border-radius:12px; padding:10px; color:#ddd; }
+  .k { display:inline-flex; min-width:56px; padding:6px 10px; border:2px solid var(--accent); border-radius:8px; margin: 0 4px; font-weight:800; }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>🧩 Zajęcia 17 – Pamięć sekwencyjna (sekwencje kierunków)</h1>
+    <p class="note">Zapamiętaj i odtwórz sekwencję strzałek. Odtwarzaj klawiszami <span class="k">↑</span><span class="k">↓</span><span class="k">←</span><span class="k">→</span> lub klikaj pola.</p>
+
+    <section class="panel">
+      <div class="controls">
+        <div><label>Wielkość: <span id="fontVal">100%</span></label><input id="fontsize" type="range" min="80" max="200" step="5" value="100" /></div>
+        <div><label>Kontrast</label><select id="theme"><option value="dark">Ciemny</option><option value="light">Jasny</option></select></div>
+        <div><label>Lektor</label><select id="tts"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+        <div><label>Startowy poziom</label><select id="startLen"><option>3</option><option selected>4</option><option>5</option></select></div>
+        <div><label>Tempo – pokaz (ms)</label><input id="show" type="number" min="300" max="2000" step="50" value="700" /></div>
+        <div><label>Tempo – przerwa (ms)</label><input id="gap" type="number" min="100" max="1200" step="50" value="200" /></div>
+        <div><label>Rund max</label><input id="rounds" type="number" min="3" max="20" value="10" /></div>
+        <div style="align-self:end"><button id="start" class="primary">START</button></div>
+      </div>
+
+      <div class="display">
+        <div class="board">
+          <button class="pad" id="padL">←</button>
+          <button class="pad" id="padR">→</button>
+          <button class="pad" id="padU">↑</button>
+          <button class="pad" id="padD">↓</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><b>Poziom (dł. sekwencji):</b> <span id="lvl">0</span></div>
+        <div class="stat"><b>Etap odtwarzania:</b> <span id="step">—</span></div>
+        <div class="stat"><b>Poprawne rundy:</b> <span id="ok">0</span></div>
+        <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+const KEYS = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];
+const PADS = { ArrowLeft: document.getElementById('padL'), ArrowRight: document.getElementById('padR'), ArrowUp: document.getElementById('padU'), ArrowDown: document.getElementById('padD') };
+
+let audioCtx;
+function ensureAudio(){ if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+function tone(freq=600, dur=320){ if(!audioCtx) return; const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='sine'; o.frequency.value=freq; g.gain.value=.001; o.connect(g); g.connect(audioCtx.destination); o.start(); const now=audioCtx.currentTime; g.gain.exponentialRampToValueAtTime(.27, now+.03); g.gain.exponentialRampToValueAtTime(.0001, now+dur/1e3); o.stop(now+dur/1e3+.04); }
+const FREQS = { ArrowLeft: 420, ArrowRight: 520, ArrowUp: 620, ArrowDown: 340 };
+
+let voiceOn = true;
+const ttsSel = document.getElementById('tts');
+if (ttsSel) ttsSel.addEventListener('change', (e)=>{ voiceOn = e.target.value==='on'; if(!voiceOn && 'speechSynthesis' in window) window.speechSynthesis.cancel(); });
+function speak(txt){ if(!voiceOn) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(txt); u.lang='pl-PL'; u.rate=0.95; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
+
+const font = document.getElementById('fontsize');
+const fontVal = document.getElementById('fontVal');
+if (font) font.addEventListener('input', ()=>{ const v=parseInt(font.value,10); fontVal.textContent=v+'%'; document.documentElement.style.setProperty('--scale', (v/100)); });
+
+const theme = document.getElementById('theme');
+if (theme) theme.addEventListener('change', (e)=>{ const v=e.target.value; document.body.style.background = v==='light' ? '#fff' : '#000'; document.body.style.color = v==='light' ? '#000' : '#FFC857'; document.querySelectorAll('.panel,input,select,button,.display,.pad').forEach(el=>{ el.style.borderColor = v==='light' ? '#000' : getComputedStyle(document.documentElement).getPropertyValue('--accent'); }); });
+
+const el = { start: document.getElementById('start'), lvl: document.getElementById('lvl'), step: document.getElementById('step'), ok: document.getElementById('ok'), err: document.getElementById('err'),
+  show: document.getElementById('show'), gap: document.getElementById('gap'), rounds: document.getElementById('rounds'), startLen: document.getElementById('startLen') };
+
+let seq = [], idx = 0, level = 0, done = 0, maxRounds = 10, playing = false;
+
+function rnd(){ return KEYS[Math.floor(Math.random()*KEYS.length)]; }
+
+async function flashPad(code, dur){
+  const pad = PADS[code]; if(!pad) return;
+  pad.classList.add('active'); tone(FREQS[code]||600, dur-40);
+  await new Promise(r=>setTimeout(r, dur));
+  pad.classList.remove('active');
+}
+
+async function showSeq(){
+  playing = true; el.step.textContent = 'Oglądaj'; speak('Uwaga, pokaz sekwencji');
+  const d = parseInt(el.show.value)||700, g = parseInt(el.gap.value)||200;
+  for(const code of seq){
+    await flashPad(code, d);
+    await new Promise(r=>setTimeout(r, g));
+  }
+  playing = false; el.step.textContent = 'Odtwórz';
+  speak('Odtwórz sekwencję');
+  idx = 0;
+}
+
+function start(){
+  ensureAudio();
+  level = parseInt(el.startLen.value)||4;
+  maxRounds = parseInt(el.rounds.value)||10;
+  done = 0; el.ok.textContent = '0'; el.err.textContent = '0';
+  newLevel(true);
+}
+
+function newLevel(initial=false){
+  seq = Array.from({length: level}, rnd);
+  el.lvl.textContent = level.toString();
+  showSeq();
+}
+
+function press(code){
+  if(playing) return;
+  const want = seq[idx];
+  flashPad(code, 260);
+  if(code === want){
+    idx++;
+    el.step.textContent = `Krok ${idx} / ${seq.length}`;
+    if(idx >= seq.length){
+      done++; el.ok.textContent = String(done);
+      if(done >= maxRounds){ end(); return; }
+      level++; newLevel();
+    }
+  } else {
+    el.err.textContent = String((parseInt(el.err.textContent)||0)+1);
+    level = Math.max(3, level-1);
+    newLevel();
+  }
+}
+
+function end(){
+  el.step.textContent = 'Koniec ćwiczenia';
+  speak('Koniec ćwiczenia');
+}
+
+el.start.addEventListener('click', start);
+Object.entries(PADS).forEach(([code, btn])=>{
+  btn.addEventListener('click', ()=>press(code));
+});
+window.addEventListener('keydown', (e)=>{
+  if(['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement?.tagName)) return;
+  if(KEYS.includes(e.code)) press(e.code);
+});
+</script>
+</body>
+</html>

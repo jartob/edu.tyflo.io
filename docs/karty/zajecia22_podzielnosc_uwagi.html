@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zajęcia 22 – Podzielność uwagi (zadanie podwójne)</title>
+<style>
+  :root { --scale: 1.0; --accent:#F7B801; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#000; color:#fff; font-size:calc(18px * var(--scale)); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: calc(2rem * var(--scale)); margin: 0 0 8px; }
+  .note { font-size: calc(1rem * var(--scale)); color:#ffe9a8; }
+  .controls { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
+  label { display:block; margin-bottom:6px; }
+  input[type="number"], input[type="range"], select, button { width:100%; padding:12px 14px; font-size:calc(1rem * var(--scale)); background:#000; color:#fff; border:2px solid var(--accent); border-radius:12px; }
+  button.primary { background:var(--accent); color:#000; border-color:var(--accent); font-weight:800; cursor:pointer; }
+  .panel { border:2px solid var(--accent); border-radius:16px; background:#111; padding:16px; margin-bottom:14px; }
+  .display { border:3px dashed var(--accent); border-radius:16px; min-height: 34vh; padding:16px; position:relative; overflow:hidden; }
+  .center { display:flex; align-items:center; justify-content:center; height: 180px; }
+  .letter { font-size: calc(5rem * var(--scale)); font-weight:900; letter-spacing:.5px; }
+  .periph { position:absolute; width: 44px; height: 44px; border-radius:50%; background:#F7B801; box-shadow:0 0 12px rgba(247,184,1,.7); opacity:0; }
+  .periph.on { opacity: 1; }
+  .legend { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+  .pill { min-width:58px; padding:8px 12px; border:2px solid var(--accent); border-radius:999px; font-weight:900; background:#000; color:#fff; display:inline-flex; align-items:center; gap:8px; }
+  .key { display:inline-flex; min-width:36px; justify-content:center; padding:6px 10px; border:2px solid var(--accent); border-radius:8px; font-weight:800; }
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:10px; margin-top:12px; }
+  .stat { background:#111; border:1px solid #333; border-radius:12px; padding:10px; color:#ddd; }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>🧭 Zajęcia 22 – Podzielność uwagi (zadanie podwójne)</h1>
+    <p class="note">
+      Zadanie A (centrum): naciskaj <span class="key">J</span>, gdy pojawi się litera <b>T</b> lub <b>L</b>.<br/>
+      Zadanie B (peryferia): naciskaj <span class="key">SPACJĘ</span>, gdy zapali się żółte kółko na brzegu ekranu.
+    </p>
+
+    <section class="panel">
+      <div class="controls">
+        <div><label>Wielkość: <span id="fontVal">100%</span></label><input id="fontsize" type="range" min="80" max="220" step="5" value="100" /></div>
+        <div><label>Kontrast</label><select id="theme"><option value="dark">Ciemny</option><option value="light">Jasny</option></select></div>
+        <div><label>Lektor</label><select id="tts"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+
+        <div><label>Liczba bodźców</label><input id="rounds" type="number" min="30" max="300" value="120" /></div>
+        <div><label>Tempo (ms/zmiana)</label><input id="tempo" type="number" min="350" max="2000" step="50" value="800" /></div>
+        <div><label>Szansa litery docelowej (%)</label><input id="pTarget" type="number" min="5" max="60" step="5" value="25" /></div>
+        <div><label>Szansa bodźca peryferyjnego (%)</label><input id="pPeriph" type="number" min="5" max="40" step="5" value="20" /></div>
+
+        <div style="align-self:end"><button id="start" class="primary">START</button></div>
+      </div>
+
+      <div class="display" id="disp" aria-live="polite">
+        <div class="center"><div id="letter" class="letter">START</div></div>
+        <div id="p1" class="periph" style="left:12px; top:12px;"></div>
+        <div id="p2" class="periph" style="right:12px; top:12px;"></div>
+        <div id="p3" class="periph" style="left:12px; bottom:12px;"></div>
+        <div id="p4" class="periph" style="right:12px; bottom:12px;"></div>
+        <div class="legend" aria-hidden="true">
+          <span class="pill"><span class="key">J</span> Litera T/L</span>
+          <span class="pill"><span class="key">SPACJA</span> Żółte kółko</span>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><b>Bodźce:</b> <span id="n">0 / 0</span></div>
+        <div class="stat"><b>Zad. A – trafienia:</b> <span id="aHit">0</span></div>
+        <div class="stat"><b>Zad. A – błędy:</b> <span id="aErr">0</span></div>
+        <div class="stat"><b>Zad. B – trafienia:</b> <span id="bHit">0</span></div>
+        <div class="stat"><b>Zad. B – błędy:</b> <span id="bErr">0</span></div>
+        <div class="stat"><b>RT (A) śr.:</b> <span id="aAvg">—</span></div>
+        <div class="stat"><b>RT (B) śr.:</b> <span id="bAvg">—</span></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+// UI helpers
+const $ = (s)=>document.querySelector(s);
+const el = {
+  start: $('#start'), disp: $('#disp'), letter: $('#letter'),
+  rounds: $('#rounds'), tempo: $('#tempo'), pTarget: $('#pTarget'), pPeriph: $('#pPeriph'),
+  n: $('#n'), aHit: $('#aHit'), aErr: $('#aErr'), bHit: $('#bHit'), bErr: $('#bErr'),
+  aAvg: $('#aAvg'), bAvg: $('#bAvg'), fontsize: $('#fontsize'), fontVal: $('#fontVal'), theme: $('#theme'), tts: $('#tts'),
+  p1: $('#p1'), p2: $('#p2'), p3: $('#p3'), p4: $('#p4')
+};
+
+let voiceOn = true;
+el.tts.addEventListener('change', (e)=>{ voiceOn = e.target.value==='on'; if(!voiceOn && 'speechSynthesis' in window) window.speechSynthesis.cancel(); });
+function say(txt){ if(!voiceOn) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(txt); u.lang='pl-PL'; u.rate=0.95; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
+
+el.fontsize.addEventListener('input', ()=>{ const v=parseInt(el.fontsize.value,10); el.fontVal.textContent=v+'%'; document.documentElement.style.setProperty('--scale', (v/100)); });
+el.theme.addEventListener('change', (e)=>{ const v=e.target.value; document.body.style.background = v==='light' ? '#fff' : '#000'; document.body.style.color = v==='light' ? '#000' : '#F7B801'; document.querySelectorAll('.panel,input,select,button,.display,.pill,.key').forEach(elm=>{ elm.style.borderColor = v==='light' ? '#000' : getComputedStyle(document.documentElement).getPropertyValue('--accent'); }); });
+
+// Task state
+const LETTERS = ['A','E','F','H','K','M','N','R','S','U','V','W','Y','T','L']; // T/L jako cele
+const PERIPHS = [el.p1, el.p2, el.p3, el.p4];
+
+const st = {
+  total:120, i:0, timer:0, tempo:800,
+  aAns:false, bAns:false, aT0:0, bT0:0,
+  aHit:0, aErr:0, bHit:0, bErr:0, aRT:[], bRT:[],
+  periphOn:null
+};
+
+function resetStats(){
+  st.i=0; st.aHit=0; st.aErr=0; st.bHit=0; st.bErr=0; st.aRT=[]; st.bRT=[];
+  el.aHit.textContent='0'; el.aErr.textContent='0'; el.bHit.textContent='0'; el.bErr.textContent='0'; el.aAvg.textContent='—'; el.bAvg.textContent='—';
+}
+
+function avg(arr){ return arr.length? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : null; }
+
+function next(){
+  clearTimeout(st.timer);
+  st.i++; el.n.textContent = `${Math.min(st.i, st.total)} / ${st.total}`;
+  if(st.i>st.total){ finish(); return; }
+
+  // Generate new central letter
+  const pT = parseInt(el.pTarget.value)||25;
+  const isTarget = (Math.random()*100 < pT);
+  const pool = LETTERS;
+  let letter = pool[Math.floor(Math.random()*pool.length)];
+  if(isTarget){ letter = Math.random()<0.5 ? 'T' : 'L'; }
+  else { while(letter==='T' || letter==='L') letter = pool[Math.floor(Math.random()*pool.length)]; }
+  el.letter.textContent = letter;
+  st.aAns = (letter==='T' || letter==='L'); st.aT0 = performance.now();
+
+  // Maybe spawn peripheral
+  PERIPHS.forEach(p=>p.classList.remove('on'));
+  st.periphOn = null; st.bAns=false;
+  if(Math.random()*100 < (parseInt(el.pPeriph.value)||20)){
+    const p = PERIPHS[Math.floor(Math.random()*PERIPHS.length)];
+    p.classList.add('on'); st.periphOn = p; st.bAns = true; st.bT0 = performance.now();
+  }
+
+  st.tempo = parseInt(el.tempo.value)||800;
+  st.timer = setTimeout(()=>{ // time window closes -> count misses for active targets
+    // Central task miss is simply no response; we don't track miss separately, tylko błędy (fa) gdy zbędna reakcja
+    if(st.periphOn){ st.periphOn.classList.remove('on'); st.periphOn=null; }
+    next();
+  }, st.tempo);
+}
+
+function pressA(){
+  // J pressed for letter T/L
+  if(st.aAns){ st.aHit++; el.aHit.textContent=st.aHit; const rt=Math.max(0, performance.now()-st.aT0); st.aRT.push(rt); }
+  else { st.aErr++; el.aErr.textContent=st.aErr; }
+  const a=avg(st.aRT); if(a!==null) el.aAvg.textContent=a+' ms';
+}
+function pressB(){
+  // Space for peripheral
+  if(st.bAns && st.periphOn){ st.bHit++; el.bHit.textContent=st.bHit; const rt=Math.max(0, performance.now()-st.bT0); st.bRT.push(rt); st.periphOn.classList.remove('on'); st.periphOn=null; }
+  else { st.bErr++; el.bErr.textContent=st.bErr; }
+  const b=avg(st.bRT); if(b!==null) el.bAvg.textContent=b+' ms';
+}
+
+function start(){
+  st.total = parseInt(el.rounds.value)||120;
+  resetStats();
+  say('Zadanie podzielności uwagi. Reaguj na literę T lub L oraz na żółte kółko w narożnikach.');
+  next();
+}
+
+el.start.addEventListener('click', start);
+window.addEventListener('keydown', (e)=>{
+  if(['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement?.tagName)) return;
+  if(e.key.toLowerCase()==='j'){ e.preventDefault(); pressA(); }
+  if(e.code==='Space'){ e.preventDefault(); pressB(); }
+});
+</script>
+</body>
+</html>

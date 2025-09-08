@@ -1,0 +1,26 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 08 – Analiza kształtów – puzzle</title>
+<style>:root{--scale:1.0;--accent:#EF5350}*{box-sizing:border-box}body{margin:0;font-family:system-ui;background:#000;color:#fff;font-size:calc(18px*var(--scale))}
+.wrap{max-width:900px;margin:0 auto;padding:20px}.panel{border:2px solid var(--accent);border-radius:16px;background:#0e0e0e;padding:16px;margin:12px 0}
+.grid{display:grid;gap:8px;border:3px dashed var(--accent);border-radius:16px;padding:12px} .piece{border:2px solid var(--accent);border-radius:10px;background:#000;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-weight:900;cursor:grab}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}input,select,button{width:100%;padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px}
+button.primary{background:var(--accent);color:#000;font-weight:800;cursor:pointer}.note{color:#bbb}</style></head><body>
+<main class="wrap"><h1>🧩 Zajęcia 08 – Puzzle (ułóż kolejno 1..N)</h1>
+<section class="panel"><div class="controls">
+  <div><label>Rozmiar</label><select id="n"><option>3</option><option selected>4</option><option>5</option></select></div>
+  <div style="align-self:end"><button id="start" class="primary">ROZŁÓŻ</button></div>
+</div>
+<div id="grid" class="grid" style="grid-template-columns:repeat(4,1fr)"></div>
+<p class="note">Przeciągnij elementy tak, by wierszami ułożyć <b>1..N²</b>.</p></section></main>
+<script>
+const $=s=>document.querySelector(s); let drag=null;
+function build(){ const N=parseInt($('#n').value)||4; const g=$('#grid'); g.style.gridTemplateColumns=`repeat(${N},1fr)`; g.innerHTML='';
+  const arr=Array.from({length:N*N},(_,i)=>i+1).sort(()=>Math.random()-0.5);
+  arr.forEach(v=>{ const d=document.createElement('div'); d.className='piece'; d.textContent=String(v); d.draggable=true;
+    d.addEventListener('dragstart',()=>drag=d); d.addEventListener('dragend',()=>drag=null);
+    d.addEventListener('dragover',(e)=>e.preventDefault()); d.addEventListener('drop',()=>{ if(!drag||drag===d) return; const a=drag.textContent, b=d.textContent; drag.textContent=b; d.textContent=a; check(); });
+    g.appendChild(d); });
+}
+function check(){ const vals=[...document.querySelectorAll('.piece')].map(e=>parseInt(e.textContent)); const ok=vals.every((v,i)=>v===i+1); if(ok) alert('Brawo! Ułożone.'); }
+$('#start').addEventListener('click', build); build();
+</script></body></html>

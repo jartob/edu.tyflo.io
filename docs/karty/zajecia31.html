@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 31 – Szybkość reakcji (dwa bodźce)</title>
+<style>
+:root{--accent:#00E0FF; --gap:10px; --rad:14px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent)}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:.95rem;color:#bbb;margin:4px 0 0}
+.display{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+.cell{border:2px dashed var(--accent);border-radius:12px;min-height:110px;display:flex;align-items:center;justify-content:center;font-size:2rem}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.btn{padding:10px 12px;border:2px solid var(--accent);border-radius:12px;background:#000;color:#fff;font-weight:800}
+.highlight{background:#062a2f;border-style:solid}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>⚡ Zajęcia 31 – Szybkość reakcji (dwa bodźce)</h1>
+  <section class="panel">
+    <div class="controls">
+      <div>
+        <label for="trials">Liczba prób</label>
+        <select id="trials">
+          <option>12</option>
+          <option selected>20</option>
+          <option>30</option>
+        </select>
+      </div>
+      <div>
+        <label for="ttsSel">Lektor</label>
+        <select id="ttsSel">
+          <option value="on" selected>Włączony</option>
+          <option value="off">Wyłączony</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="primary" id="goal">🔊 Odczytaj cel</button>
+        <button class="primary" id="start">START</button>
+      </div>
+    </div>
+    <p class="small">Gdy podświetli się <b>LEWE</b> pole – kliknij LEWO; gdy <b>PRAWE</b> – kliknij PRAWO. Klawisze: <b>F</b> = lewo, <b>J</b> = prawo.</p>
+  </section>
+  <section class="panel">
+    <div class="display">
+      <div id="left" class="cell">LEWO</div>
+      <div id="right" class="cell">PRAWO</div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btnL">← LEWO (F)</button>
+      <button class="btn" id="btnR">PRAWO (J) →</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>Próba:</b> <span id="pos">0</span>/<span id="total">0</span></div>
+      <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+      <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+      <div class="stat"><b>Śr. czas reakcji:</b> <span id="rt">–</span></div>
+    </div>
+  </section>
+</main>
+<script>
+const $=s=>document.querySelector(s); let voice=true;
+$('#ttsSel').addEventListener('change',e=>{voice=e.target.value==='on'; if(!voice&&'speechSynthesis'in window) try{speechSynthesis.cancel();}catch(_){}});
+function say(t){ if(!voice||!('speechSynthesis'in window))return; try{speechSynthesis.cancel();}catch(_){}
+ const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u); }
+$('#goal').addEventListener('click',()=>say('Reaguj szybko na podświetlenie lewej lub prawej strony.'));
+let seq=[],i=0,total=0,ok=0,err=0,awaiting=false,tShow=0,rts=[];
+function next(){ if(i>=total){ finish(); return; } const left=Math.random()<0.5; seq[i]=left?'L':'R';
+  $('#left').classList.toggle('highlight', left); $('#right').classList.toggle('highlight', !left); $('#pos').textContent=String(i+1); awaiting=true; tShow=performance.now(); }
+function update(){ $('#ok').textContent=String(ok); $('#err').textContent=String(err); const times=rts.filter(v=>Number.isFinite(v)); $('#rt').textContent=times.length?Math.round(times.reduce((a,b)=>a+b,0)/times.length)+' ms':'–'; }
+function ans(side){ if(!awaiting) return; const target=seq[i]; const rt=Math.round(performance.now()-tShow); const corr=(side===target);
+  if(corr){ ok++; say('dobrze'); } else { err++; say('spróbuj ponownie'); } rts.push(rt); awaiting=false; i++; $('#left').classList.remove('highlight'); $('#right').classList.remove('highlight'); update(); setTimeout(next,150); }
+$('#btnL').addEventListener('click',()=>ans('L')); $('#btnR').addEventListener('click',()=>ans('R'));
+document.addEventListener('keydown',e=>{const k=e.key.toLowerCase(); if(k==='f') ans('L'); else if(k==='j') ans('R');});
+$('#start').addEventListener('click',()=>{ total=Number($('#trials').value); seq=new Array(total); i=0; ok=0; err=0; awaiting=false; rts=[];
+  $('#total').textContent=String(total); $('#pos').textContent='0'; $('#ok').textContent='0'; $('#err').textContent='0'; $('#rt').textContent='–';
+  say('Zaczynamy. Reaguj szybko i dokładnie.'); setTimeout(next,300); });
+function finish(){ $('#left').classList.remove('highlight'); $('#right').classList.remove('highlight'); say('Koniec. Świetnie poszło.'); }
+</script>
+</body>
+</html>

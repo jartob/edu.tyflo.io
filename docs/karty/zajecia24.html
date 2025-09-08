@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zajęcia 24 – Stroop (wersja czytelna, bez nachodzenia)</title>
+<style>
+:root{--accent:#00E0FF; --gap:10px; --rad:14px; --size:84px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent)}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,input,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:.95rem;color:#bbb;margin:4px 0 0}
+
+.board{display:grid;gap:var(--gap);grid-template-columns:repeat(auto-fit, minmax(var(--size), 1fr));align-items:center;justify-items:center}
+.badge{width:var(--size);height:var(--size);border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid var(--accent);background:#000;font-weight:900;user-select:none}
+.badge span{display:block;line-height:1}
+/* Dynamiczne dopasowanie rozmiaru cyfr do kółka */
+.badge[data-len="1"] span{font-size:calc(var(--size) * 0.55)}
+.badge[data-len="2"] span{font-size:calc(var(--size) * 0.45)}
+.badge[data-len="3"] span{font-size:calc(var(--size) * 0.36)}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.tag{padding:6px 10px;border:1px solid #333;border-radius:10px;background:#0b0b0b;color:#ddd}
+
+@media (max-width:480px){
+  :root{--size:72px; --gap:8px}
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>🎯 Zajęcia 24 – Stroop (czytelność)</h1>
+  <section class="panel">
+    <div class="controls">
+      <div>
+        <label for="mode">Tryb</label>
+        <select id="mode">
+          <option value="digits" selected>Cyfry w kółkach</option>
+          <option value="words">Słowa-kolory (Stroop)</option>
+        </select>
+      </div>
+      <div>
+        <label for="count">Ile elementów</label>
+        <select id="count">
+          <option>8</option>
+          <option selected>12</option>
+          <option>16</option>
+          <option>20</option>
+        </select>
+      </div>
+      <div>
+        <label for="size">Rozmiar kółka</label>
+        <select id="size">
+          <option value="72">małe</option>
+          <option value="84" selected>średnie</option>
+          <option value="96">duże</option>
+          <option value="110">bardzo duże</option>
+        </select>
+      </div>
+      <div>
+        <label for="ttsSel">Lektor</label>
+        <select id="ttsSel">
+          <option value="on" selected>Włączony</option>
+          <option value="off">Wyłączony</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="primary" id="goal">🔊 Odczytaj cel</button>
+        <button class="primary" id="start">START</button>
+      </div>
+    </div>
+    <p class="small">Ta wersja zapobiega nachodzeniu elementów – siatka automatycznie <b>zawija</b> elementy do nowych kolumn/rzędów, a cyfry skaluje się do kółek.</p>
+    <div class="legend">
+      <span class="tag">Wskazówka: jeśli nadal coś się nie mieści, zmniejsz „Rozmiar kółka”.</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div id="board" class="board" aria-label="plansza z kółkami"></div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let voice = true;
+$('#ttsSel').addEventListener('change', e => {
+  voice = e.target.value === 'on';
+  if(!voice && 'speechSynthesis' in window) try{ speechSynthesis.cancel(); } catch(_) {}
+});
+function say(t){
+  if(!voice || !('speechSynthesis' in window)) return;
+  try{ speechSynthesis.cancel(); } catch(_) {}
+  const u = new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);
+}
+$('#goal').addEventListener('click', ()=> say('Celem jest ćwiczenie hamowania reakcji i koncentracji. Zwracaj uwagę na polecenie i reaguj zgodnie z nim.'));
+
+const COLORS = ['#00E0FF','#FFD166','#EF476F','#06D6A0','#C792EA','#FFA500'];
+
+function build(){
+  document.documentElement.style.setProperty('--size', $('#size').value + 'px');
+  const board = $('#board');
+  board.innerHTML = '';
+  const n = Number($('#count').value);
+  const mode = $('#mode').value;
+  if(mode === 'digits'){
+    const arr = Array.from({length:n}, (_,i)=> (Math.floor(Math.random()*90)+10).toString()); // 2‑cyfrowe domyślnie
+    arr.forEach(txt=>{
+      const b = document.createElement('div');
+      b.className = 'badge';
+      b.style.borderColor = COLORS[Math.floor(Math.random()*COLORS.length)];
+      const span = document.createElement('span');
+      span.textContent = txt;
+      b.setAttribute('data-len', String(txt.length));
+      b.appendChild(span);
+      board.appendChild(b);
+    });
+  } else {
+    const words = [
+      ['CZERWONY','#EF476F'], ['ZIELONY','#06D6A0'], ['NIEBIESKI','#00E0FF'],
+      ['ŻÓŁTY','#FFD166'], ['FIOLETOWY','#C792EA'], ['POMARAŃCZOWY','#FFA500']
+    ];
+    for(let i=0;i<n;i++){
+      const [w,c] = words[Math.floor(Math.random()*words.length)];
+      const [w2,c2] = words[Math.floor(Math.random()*words.length)];
+      const b = document.createElement('div');
+      b.className = 'badge';
+      b.style.borderColor = c2;
+      const span = document.createElement('span');
+      span.textContent = w;
+      span.style.color = c2; // klasyczny konflikt Stroopa
+      b.setAttribute('data-len', String(w.length));
+      b.appendChild(span);
+      board.appendChild(b);
+    }
+  }
+}
+
+document.getElementById('start').addEventListener('click', build);
+// Wstępne renderowanie dla poglądu
+build();
+</script>
+</body>
+</html>

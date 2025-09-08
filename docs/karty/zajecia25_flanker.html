@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zajęcia 25 – Hamowanie reakcji (Flanker: strzałki)</title>
+<style>
+  :root { --scale: 1.0; --accent:#FF6A6A; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#000; color:#fff; font-size:calc(18px * var(--scale)); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: calc(2rem * var(--scale)); margin: 0 0 8px; }
+  .note { font-size: calc(1rem * var(--scale)); color:#ffd0d0; }
+  .controls { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
+  label { display:block; margin-bottom:6px; }
+  input[type="number"], input[type="range"], select, button { width:100%; padding:12px 14px; font-size:calc(1rem * var(--scale)); background:#000; color:#fff; border:2px solid var(--accent); border-radius:12px; }
+  button.primary { background:var(--accent); color:#000; border-color:var(--accent); font-weight:800; cursor:pointer; }
+  .panel { border:2px solid var(--accent); border-radius:16px; background:#111; padding:16px; margin-bottom:14px; }
+  .display { border:3px dashed var(--accent); border-radius:16px; min-height: 28vh; display:flex; align-items:center; justify-content:center; text-align:center; padding:16px; position:relative; gap:12px; flex-wrap:wrap; }
+  .stim { font-size: calc(4.6rem * var(--scale)); font-weight:900; letter-spacing:.5px; }
+  .legend { display:flex; gap:10px; flex-wrap:wrap; }
+  .pill { min-width:58px; padding:8px 12px; border:2px solid var(--accent); border-radius:999px; font-weight:900; background:#000; color:#fff; display:inline-flex; align-items:center; gap:8px; }
+  .key { display:inline-flex; min-width:36px; justify-content:center; padding:6px 10px; border:2px solid var(--accent); border-radius:8px; font-weight:800; }
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:10px; margin-top:12px; }
+  .stat { background:#111; border:1px solid #333; border-radius:12px; padding:10px; color:#ddd; }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>🧠 Zajęcia 25 – Hamowanie reakcji (Flanker: strzałki)</h1>
+    <p class="note">Wskaż kierunek <b>ŚRODKOWEJ strzałki</b>. Odpowiadasz klawiszami <span class="key">←</span> <span class="key">→</span>. Boczne strzałki mogą przeszkadzać (konflikt).</p>
+
+    <section class="panel">
+      <div class="controls">
+        <div><label>Wielkość: <span id="fontVal">100%</span></label><input id="fontsize" type="range" min="80" max="220" step="5" value="100" /></div>
+        <div><label>Kontrast</label><select id="theme"><option value="dark">Ciemny</option><option value="light">Jasny</option></select></div>
+        <div><label>Lektor</label><select id="tts"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+
+        <div><label>Rundy</label><input id="rounds" type="number" min="20" max="240" value="80" /></div>
+        <div><label>Limit reakcji (ms)</label><input id="limit" type="number" min="300" max="4000" step="50" value="1200" /></div>
+        <div><label>Udział konfliktu (%)</label><input id="conflict" type="number" min="0" max="100" step="5" value="50" /></div>
+        <div><label>Losowy „NULL” (%)</label><input id="nullp" type="number" min="0" max="40" step="5" value="10" /></div>
+        <div style="align-self:end"><button id="start" class="primary">START</button></div>
+      </div>
+
+      <div class="display" id="disp">
+        <div class="legend" aria-hidden="true">
+          <span class="pill"><span class="key">←</span> Lewo</span>
+          <span class="pill"><span class="key">→</span> Prawo</span>
+        </div>
+        <div class="stim" id="stim">START</div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><b>Runda:</b> <span id="n">0 / 0</span></div>
+        <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+        <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+        <div class="stat"><b>Timeouty:</b> <span id="miss">0</span></div>
+        <div class="stat"><b>Ostatni RT:</b> <span id="rt">—</span></div>
+        <div class="stat"><b>Śr. RT:</b> <span id="avg">—</span></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+const $ = (s)=>document.querySelector(s);
+let voiceOn = true;
+$('#tts').addEventListener('change', (e)=>{ voiceOn = e.target.value==='on'; if(!voiceOn && 'speechSynthesis' in window) window.speechSynthesis.cancel(); });
+function say(txt){ if(!voiceOn) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(txt); u.lang='pl-PL'; u.rate=0.95; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
+
+const font = $('#fontsize'); const fontVal = $('#fontVal');
+font.addEventListener('input', ()=>{ const v=parseInt(font.value,10); fontVal.textContent=v+'%'; document.documentElement.style.setProperty('--scale', (v/100)); });
+const theme = $('#theme');
+theme.addEventListener('change', (e)=>{ const v=e.target.value; document.body.style.background = v==='light' ? '#fff' : '#000'; document.body.style.color = v==='light' ? '#000' : '#FF6A6A'; document.querySelectorAll('.panel,input,select,button,.display,.pill,.key').forEach(el=>{ el.style.borderColor = v==='light' ? '#000' : getComputedStyle(document.documentElement).getPropertyValue('--accent'); }); });
+
+const el = { stim: $('#stim'), start: $('#start'),
+  rounds: $('#rounds'), limit: $('#limit'), conflict: $('#conflict'), nullp: $('#nullp'),
+  n: $('#n'), ok: $('#ok'), err: $('#err'), miss: $('#miss'), rt: $('#rt'), avg: $('#avg'), disp: $('#disp') };
+
+const st = { total:80, n:0, ok:0, err:0, miss:0, ans:'', t0:0, exp:false, rts:[], timer:null };
+
+function flash(color){ const old=el.disp.style.borderColor; el.disp.style.borderColor=color; setTimeout(()=>{ el.disp.style.borderColor=old||'#FF6A6A'; }, 250); }
+
+function makeTrial(){
+  const isNull = Math.random()*100 < (parseInt(el.nullp.value)||0);
+  if(isNull){ return {txt:'— — —', ans:null}; }
+  const isLeft = Math.random()<0.5;
+  const incong = Math.random()*100 < (parseInt(el.conflict.value)||50);
+  const center = isLeft ? '←' : '→';
+  let flank = '';
+  if(incong){ flank = isLeft ? '→' : '←'; } else { flank = center; }
+  const txt = `${flank} ${flank} ${center} ${flank} ${flank}`;
+  return {txt, ans: center==='←'?'L':'R'};
+}
+
+function start(){
+  st.total = parseInt(el.rounds.value)||80; st.n=0; st.ok=0; st.err=0; st.miss=0; st.rts=[]; next();
+}
+
+function next(){
+  clearTimeout(st.timer);
+  st.n++; el.n.textContent = `${Math.min(st.n, st.total)} / ${st.total}`;
+  if(st.n>st.total){ finish(); return; }
+  const tr = makeTrial(); st.ans = tr.ans; el.stim.textContent = tr.txt; st.exp = true; st.t0 = performance.now();
+  const lim = parseInt(el.limit.value)||1200;
+  st.timer = setTimeout(()=>{ if(st.exp){ st.miss++; el.miss.textContent = st.miss; st.exp=false; el.stim.style.color='#fff'; setTimeout(next, 250);} }, lim);
+}
+
+function press(dir){
+  if(!st.exp) return;
+  const rt = Math.max(0, performance.now()-st.t0); el.rt.textContent = Math.round(rt)+' ms'; st.exp=false; el.stim.style.color='#fff';
+  if(st.ans===null){ // null trial – zawsze fa
+    st.err++; el.err.textContent = st.err; flash('#ff5959');
+  } else if((dir==='L' && st.ans==='L') || (dir==='R' && st.ans==='R')){
+    st.ok++; st.rts.push(rt); flash('#59ff9a');
+  } else {
+    st.err++; flash('#ff5959');
+  }
+  const avg = st.rts.length ? Math.round(st.rts.reduce((a,b)=>a+b,0)/st.rts.length) : null;
+  if(avg!==null) el.avg.textContent = avg+' ms';
+  setTimeout(next, 250);
+}
+
+function finish(){ say('Koniec ćwiczenia'); }
+
+el.start.addEventListener('click', start);
+window.addEventListener('keydown', (e)=>{
+  if(['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement?.tagName)) return;
+  if(e.code==='ArrowLeft'){ e.preventDefault(); press('L'); }
+  if(e.code==='ArrowRight'){ e.preventDefault(); press('R'); }
+});
+</script>
+</body>
+</html>

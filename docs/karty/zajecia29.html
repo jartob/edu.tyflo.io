@@ -1,0 +1,60 @@
+<!DOCTYPE html><html lang="pl"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 29 – Trening koncentracji (oddball)</title>
+<style>
+:root{--accent:#00E0FF; --gap:10px; --rad:14px}
+*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent)}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:.95rem;color:#bbb;margin:4px 0 0}
+.display{display:flex;align-items:center;justify-content:center;border:2px dashed var(--accent);border-radius:var(--rad);min-height:110px;margin-top:10px;font-size:3rem;gap:16px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.btn{padding:10px 12px;border:2px solid var(--accent);border-radius:12px;background:#000;color:#fff;font-weight:800}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+</style></head><body><main class="wrap">
+<h1>🎯 Zajęcia 29 – Trening koncentracji</h1>
+<section class="panel">
+  <div class="controls">
+    <div><label for="trials">Liczba bodźców</label><select id="trials"><option>20</option><option selected>30</option><option>40</option></select></div>
+    <div><label for="targetRatio">Częstość celu</label><select id="targetRatio"><option value="0.2">rzadko (20%)</option><option value="0.33" selected>średnio (33%)</option><option value="0.5">często (50%)</option></select></div>
+    <div><label for="ttsSel">Lektor</label><select id="ttsSel"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="primary" id="goal">🔊 Odczytaj cel</button><button class="primary" id="start">START</button></div>
+  </div>
+  <p class="small">Zadanie: <b>klikaj REAGUJ tylko, gdy zobaczysz ●</b>. Gdy jest ○ – kliknij POMIŃ. Przejście dalej <b>po Twojej odpowiedzi</b>.</p>
+</section>
+<section class="panel">
+  <div id="display" class="display" aria-live="polite">—</div>
+  <div class="actions"><button class="btn" id="react">REAGUJ (●)</button><button class="btn" id="skip">POMIŃ (○)</button></div>
+  <div class="stats">
+    <div class="stat"><b>Pozycja:</b> <span id="pos">0</span>/<span id="total">0</span></div>
+    <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+    <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+    <div class="stat"><b>Śr. czas reakcji:</b> <span id="rt">–</span></div>
+  </div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s); let voice=true;
+$('#ttsSel').addEventListener('change',e=>{voice=e.target.value==='on'; if(!voice&&'speechSynthesis'in window) try{speechSynthesis.cancel();}catch(_){}});
+function say(t){ if(!voice||!('speechSynthesis'in window))return; try{speechSynthesis.cancel();}catch(_){}
+ const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u); }
+$('#goal').addEventListener('click',()=>say('Reaguj tylko na wypełnioną kropkę. Gdy widzisz puste kółko, wybierz pomiń.'));
+let seq=[],i=0,ok=0,err=0,rts=[],tShow=0,awaiting=false,total=0;
+function gen(n,p){const o=[];for(let k=0;k<n;k++)o.push(Math.random()<p?'●':'○');return o;}
+function show(){ if(i>=total){ finish(); return; } const s=seq[i]; $('#display').textContent=s; $('#pos').textContent=String(i+1); awaiting=true; tShow=performance.now(); }
+function update(){ $('#ok').textContent=String(ok); $('#err').textContent=String(err);
+ const times=rts.filter(v=>Number.isFinite(v)); $('#rt').textContent=times.length?Math.round(times.reduce((a,b)=>a+b,0)/times.length)+' ms':'–'; }
+function answer(act){ if(!awaiting) return; const target=seq[i]; const should = target==='●'; const did = act==='react'; const rt=Math.round(performance.now()-tShow);
+ if(should===did){ ok++; say('dobrze'); } else { err++; say('spróbuj ponownie'); } rts.push(rt); awaiting=false; update(); i++; setTimeout(show,150); }
+$('#react').addEventListener('click',()=>answer('react')); $('#skip').addEventListener('click',()=>answer('skip'));
+$('#start').addEventListener('click',()=>{ total=Number($('#trials').value); seq=gen(total, Number($('#targetRatio').value));
+ i=0; ok=0; err=0; rts=[]; awaiting=false; $('#total').textContent=String(total); $('#pos').textContent='0'; $('#ok').textContent='0'; $('#err').textContent='0'; $('#rt').textContent='–';
+ say('Zaczynamy. Pamiętaj: reaguj tylko na wypełnioną kropkę.'); setTimeout(show,300); });
+function finish(){ $('#display').textContent='Koniec'; say('Koniec. Dobra robota.'); }
+</script></body></html>

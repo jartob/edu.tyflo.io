@@ -1,0 +1,67 @@
+<!DOCTYPE html><html lang='pl'><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width, initial-scale=1'/>
+<title>Zajęcia 15 – GO/NO‑GO (z lektorem)</title><style>:root{--accent:#00E0FF}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:24px}
+.panel{border:2px solid var(--accent);border-radius:16px;background:#0e0e0e;padding:16px;margin:12px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+button,select,input{padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px}
+button.primary{background:var(--accent);color:#000;font-weight:800;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:8px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:10px;color:#ddd}
+.note{color:#bbb}a{color:#0ff}
+.cell{aspect-ratio:1/1;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900}
+</style>
+<style>.display{border:3px dashed #EC407A;border-radius:16px;min-height:28vh;display:flex;align-items:center;justify-content:center;font-size:5rem;font-weight:900}
+.k{border:2px solid #EC407A;border-radius:10px;background:#000;color:#fff;padding:12px 16px;font-weight:900}</style></head>
+<body><main class='wrap'>
+<h1>🚦 Zajęcia 15 – GO/NO‑GO (z lektorem)</h1>
+<section class='panel'>
+  <div class='controls'>
+    <div><label>Rundy</label><input id='rounds' type='number' min='10' max='120' value='40'/></div>
+    <div><label>Cel GO</label><select id='t'><option value='●' selected>koło</option><option value='■'>kwadrat</option><option value='▲'>trójkąt</option><option value='★'>gwiazdka</option></select></div>
+    <div><label>Czas bodźca (ms)</label><input id='show' type='number' min='350' max='2500' step='50' value='800'/></div>
+    <div><label>Przerwa (ms)</label><input id='isi' type='number' min='200' max='2000' step='50' value='500'/></div>
+    <div><label>Lektor</label><select id='tts'><option value='on' selected>Włączony</option><option value='off'>Wyłączony</option></select></div>
+    <div style='align-self:end'><button id='start' class='primary'>START</button></div>
+  </div>
+  <p class='note'>Kliknij <b>GO</b> (lub spację), <b>tylko</b> gdy pojawi się symbol celu. W pozostałych przypadkach nic nie klikaj.</p>
+  <div id='disp' class='display'>—</div>
+  <div><button id='go' class='k'>GO (SPACE)</button></div>
+  <div class='stats'><div class='stat'><b>Hit (trafienia):</b> <span id='hit'>0</span></div><div class='stat'><b>FA (fałszywe alarmy):</b> <span id='fa'>0</span></div><div class='stat'><b>Miss (chybienia):</b> <span id='miss'>0</span></div></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+let voice=true; $('#tts').addEventListener('change',e=>{voice=e.target.value==='on'; if(!voice&&'speechSynthesis'in window) try{speechSynthesis.cancel();}catch(_ ){}});
+function say(t){ if(!voice||!('speechSynthesis'in window))return; const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; try{speechSynthesis.cancel();}catch(_ ){} speechSynthesis.speak(u);}
+const POOL=['●','■','▲','★'];
+let st={total:40,i:0,cur:null,tgt:'●',clicked:false,timer:null,phase:'idle'};
+function next(){
+  st.i++; if(st.i>st.total){ $('#disp').textContent='KONIEC'; say('Koniec ćwiczenia'); st.phase='idle'; return; }
+  const goTrial = Math.random()<0.6; // 60% GO
+  st.cur = goTrial ? st.tgt : POOL[Math.floor(Math.random()*POOL.length)];
+  $('#disp').textContent = st.cur;
+  st.phase='show'; st.clicked=false;
+  clearTimeout(st.timer);
+  st.timer=setTimeout(()=>{ if(goTrial && !st.clicked) $('#miss').textContent=String(parseInt($('#miss').textContent)+1);
+    $('#disp').textContent='—'; setTimeout(next, parseInt($('#isi').value)||500);
+  }, parseInt($('#show').value)||800);
+}
+function start(){
+  st.total = Math.max(10, Math.min(120, parseInt($('#rounds').value)||40));
+  st.tgt = $('#t').value || '●';
+  ['hit','fa','miss'].forEach(id=>$('#'+id).textContent='0');
+  st.i=0; next();
+}
+function press(){
+  if(st.phase!=='show') return;
+  st.clicked=true;
+  if(st.cur===st.tgt){ $('#hit').textContent=String(parseInt($('#hit').textContent)+1); say('dobrze'); }
+  else { $('#fa').textContent=String(parseInt($('#fa').textContent)+1); say('błąd'); }
+}
+document.getElementById('start').addEventListener('click', start);
+document.getElementById('go').addEventListener('click', press);
+window.addEventListener('keydown',e=>{ if(e.code==='Space') press(); });
+</script>
+</body></html>

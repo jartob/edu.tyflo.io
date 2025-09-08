@@ -1,0 +1,43 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 03 – Pamięć wzrokowa – dopasuj pary (Memory)</title>
+<style>:root{--scale:1.0;--accent:#FFA726}*{box-sizing:border-box}body{margin:0;font-family:system-ui;background:#000;color:#fff;font-size:calc(18px*var(--scale))}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}h1{margin:0 0 8px;font-size:calc(2rem*var(--scale))}.panel{border:2px solid var(--accent);border-radius:16px;background:#0e0e0e;padding:16px;margin-bottom:14px}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.field{border:3px dashed var(--accent);border-radius:16px;min-height:34vh;display:grid;gap:10px;padding:14px}
+input,select,button{width:100%;padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px}button.primary{background:var(--accent);color:#000;font-weight:800;cursor:pointer}
+.card{border:2px solid var(--accent);border-radius:12px;background:#000;height:110px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.face{font-weight:900;font-size:calc(2rem*var(--scale));opacity:0;transition:opacity .2s}.card.show .face{opacity:1}.card.matched{box-shadow:0 0 0 3px #59ff9a inset}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:10px;color:#ddd}</style>
+</head><body><main class="wrap"><h1>🧠 Zajęcia 03 – Pamięć wzrokowa – dopasuj pary (Memory)</h1>
+<section class="panel"><div class="controls">
+  <div><label>Rozmiar siatki</label><select id="size"><option>3x4</option><option selected>4x4</option><option>4x5</option><option>4x6</option><option>5x6</option><option>6x6</option></select></div>
+  <div><label>Zestaw</label><select id="set"><option value="letters" selected>Litery/cyfry</option><option value="shapes">Kształty</option></select></div>
+  <div><label>Lektor</label><select id="tts"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+  <div style="align-self:end"><button id="start" class="primary">NOWA GRA</button></div>
+</div>
+<div id="field" class="field" style="grid-template-columns:repeat(4,1fr)"></div>
+<div class="stats"><div class="stat"><b>Pary:</b> <span id="pairs">0</span></div><div class="stat"><b>Odsłonięcia:</b> <span id="flips">0</span></div><div class="stat"><b>Błędy:</b> <span id="err">0</span></div><div class="stat"><b>Czas:</b> <span id="time">0.0 s</span></div></div>
+</section></main>
+<script>
+const $=s=>document.querySelector(s); let voiceOn=true; $('#tts').addEventListener('change',e=>{voiceOn=e.target.value==='on'; if(!voiceOn&&'speechSynthesis'in window) speechSynthesis.cancel();});
+function say(t){ if(!voiceOn||!('speechSynthesis'in window))return; const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; u.rate=0.95; speechSynthesis.cancel(); speechSynthesis.speak(u); }
+const LETTERS='A B C D E F G H I K L M N O P R S T U W Y Z 1 2 3 4 5 6 7 8 9'.split(' ');
+const SHAPES='◆ ✚ ✖ ⬟ ⬢ ⬣ ⬠ ⬡ △ ▽ ◻ ■ ● ▲ ▼ ★ ☆ ⬤ ◯'.split(' ');
+const el={size:$('#size'),set:$('#set'),field:$('#field'),pairs:$('#pairs'),flips:$('#flips'),err:$('#err'),time:$('#time'),start:$('#start')};
+let startTime=0, flips=0, errors=0, leftPairs=0, first=null, lock=false;
+function parseGrid(v){const [r,c]=v.split('x').map(x=>parseInt(x));return {r,c};}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function build(){const {r,c}=parseGrid(el.size.value); el.field.style.gridTemplateColumns=`repeat(${c},1fr)`; el.field.innerHTML='';
+  const total=r*c, pairs=total/2; leftPairs=pairs; flips=0; errors=0; first=null; lock=false;
+  el.pairs.textContent=pairs; el.flips.textContent='0'; el.err.textContent='0'; el.time.textContent='0.0 s';
+  const pool=(el.set.value==='letters'?LETTERS:SHAPES).slice(); shuffle(pool);
+  const symbols=[]; for(let i=0;i<pairs;i++){ const s=pool[i%pool.length]; symbols.push(s,s); } shuffle(symbols);
+  symbols.forEach(sym=>{ const b=document.createElement('button'); b.className='card'; const span=document.createElement('span'); span.className='face'; span.textContent=sym; b.appendChild(span);
+    b.addEventListener('click',()=>flip(b,sym)); el.field.appendChild(b); });
+  startTime=performance.now();
+}
+function flip(btn,sym){ if(lock||btn.classList.contains('matched')||btn.classList.contains('show')) return; btn.classList.add('show'); flips++; el.flips.textContent=flips; say('odkryj');
+  if(!first){ first={btn,sym}; return;} if(first.sym===sym && first.btn!==btn){ btn.classList.add('matched'); first.btn.classList.add('matched'); leftPairs--; el.pairs.textContent=leftPairs;
+    setTimeout(()=>{ btn.classList.remove('show'); first.btn.classList.remove('show'); },180); first=null; say('para'); if(leftPairs<=0){ const secs=((performance.now()-startTime)/1000).toFixed(1); el.time.textContent=secs+' s'; say('brawo'); } }
+  else { lock=true; errors++; el.err.textContent=errors; setTimeout(()=>{ btn.classList.remove('show'); if(first) first.btn.classList.remove('show'); first=null; lock=false; },600); } }
+el.start.addEventListener('click', build); build();
+</script></body></html>

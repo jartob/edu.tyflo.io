@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 21 – Kliknij podświetlony (naprawa START)</title>
+<style>
+:root{--accent:#00E0FF; --gap:10px; --rad:14px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1000px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent)}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:.95rem;color:#bbb;margin:4px 0 0}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
+.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-weight:900;cursor:pointer}
+.cell.target{background:#062a2f;border-style:solid}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>⚡ Zajęcia 21 – Kliknij podświetlony</h1>
+  <section class="panel">
+    <div class="controls">
+      <div>
+        <label for="gridSel21">Liczba pól</label>
+        <select id="gridSel21">
+          <option value="12">12</option>
+          <option value="16" selected>16</option>
+          <option value="20">20</option>
+        </select>
+      </div>
+      <div>
+        <label for="ttsSel21">Lektor</label>
+        <select id="ttsSel21">
+          <option value="on" selected>Włączony</option>
+          <option value="off">Wyłączony</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="primary" id="goal21">🔊 Odczytaj cel</button>
+        <button class="primary" id="start21">START</button>
+      </div>
+    </div>
+    <p class="small">Zadanie: kliknij <b>podświetlone</b> pole tak szybko, jak potrafisz. Po każdej reakcji zliczam OK/Błąd i czas. Bez auto‑timeoutu.</p>
+  </section>
+  <section class="panel">
+    <div id="board21" class="grid"></div>
+    <div class="stats">
+      <div class="stat"><b>Próba:</b> <span id="pos21">0</span>/<span id="total21">0</span></div>
+      <div class="stat"><b>Poprawne:</b> <span id="ok21">0</span></div>
+      <div class="stat"><b>Błędy:</b> <span id="err21">0</span></div>
+      <div class="stat"><b>Śr. czas reakcji:</b> <span id="rt21">–</span></div>
+    </div>
+  </section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+let voice21 = true;
+$('#ttsSel21').addEventListener('change', e => { voice21 = e.target.value === 'on'; if(!voice21 && 'speechSynthesis' in window) try{ speechSynthesis.cancel(); } catch(_) {} });
+function say21(t){ if(!voice21 || !('speechSynthesis' in window)) return; try{ speechSynthesis.cancel(); } catch(_) {} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u); }
+$('#goal21').addEventListener('click', ()=> say21('Celem jest kliknięcie podświetlonego pola tak szybko, jak potrafisz.'));
+
+let N21=16, total21=16, pos21=0, ok21=0, err21=0, rts21=[], tShow21=0, awaiting21=false, target21=-1, busy21=false;
+
+function buildGrid21(n){
+  const g = $('#board21'); g.innerHTML='';
+  for(let i=0;i<n;i++){ const d=document.createElement('button'); d.className='cell'; d.addEventListener('click', ()=>onPick21(i,d)); g.appendChild(d); }
+}
+
+function prepareTrial21(){
+  const cells=[...document.querySelectorAll('#board21 .cell')];
+  cells.forEach(c=>c.classList.remove('target'));
+  target21 = Math.floor(Math.random()*N21);
+  cells[target21].classList.add('target');
+  awaiting21=true; tShow21=performance.now();
+}
+
+function onPick21(i, el){
+  if(!awaiting21 || busy21) return;
+  busy21=true;
+  const rt = Math.round(performance.now()-tShow21);
+  rts21.push(rt);
+  if(i===target21){ ok21++; say21('dobrze'); }
+  else { err21++; say21('spróbuj ponownie'); }
+  $('#ok21').textContent=String(ok21); $('#err21').textContent=String(err21);
+  const times=rts21.filter(v=>Number.isFinite(v)); $('#rt21').textContent = times.length? Math.round(times.reduce((a,b)=>a+b,0)/times.length)+' ms':'–';
+  awaiting21=false; pos21++;
+  setTimeout(()=>{ busy21=false; if(pos21>=total21){ finish21(); } else { $('#pos21').textContent=String(pos21+1); prepareTrial21(); } }, 150);
+}
+
+function start21(){
+  N21 = Number($('#gridSel21').value);
+  total21 = N21; pos21=0; ok21=0; err21=0; rts21=[]; awaiting21=false; busy21=false;
+  $('#total21').textContent=String(total21); $('#pos21').textContent=String(pos21+1); $('#ok21').textContent='0'; $('#err21').textContent='0'; $('#rt21').textContent='–';
+  buildGrid21(N21);
+  say21('Zaczynamy. Klikaj podświetlone pole.');
+  setTimeout(prepareTrial21,300);
+}
+
+function finish21(){ say21('Koniec. Świetna praca.'); const g=$('#board21'); const end=document.createElement('div'); end.className='cell'; end.textContent='KONIEC'; end.style.gridColumn='1 / -1'; end.style.minHeight='64px'; g.appendChild(end); }
+
+document.getElementById('start21').addEventListener('click', start21);
+buildGrid21(16);
+</script>
+</body>
+</html>

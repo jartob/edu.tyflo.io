@@ -1,0 +1,149 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 09 – Wskaż kwadrant (z lektorem)</title>
+<style>
+:root{--accent:#26C6DA}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1000px;margin:0 auto;padding:20px}
+h1{margin:0 0 8px;font-size:1.9rem}
+.panel{border:2px solid var(--accent);border-radius:16px;background:#0e0e0e;padding:16px;margin:12px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+select,input,button{padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px}
+button.primary{background:var(--accent);color:#000;font-weight:800;cursor:pointer}
+.board{position:relative;border:3px dashed var(--accent);border-radius:16px;aspect-ratio:1/1;max-width:700px;margin:12px auto;touch-action:manipulation}
+.cell{position:absolute;border:2px solid var(--accent);background:#000;border-radius:12px}
+.cell.hit{box-shadow:0 0 0 3px #59ff9a inset}
+.cell.miss{box-shadow:0 0 0 3px #ff5959 inset}
+.badge{position:absolute;left:10px;top:10px;background:#000a;border:1px solid #444;border-radius:10px;padding:8px 10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:8px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:10px;color:#ddd}
+.note{color:#9be7ef}
+.keys{display:grid;grid-template-columns:repeat(3,80px);gap:8px;justify-content:center;margin-top:8px}
+.k{border:2px solid var(--accent);border-radius:10px;background:#000;color:#fff;padding:10px;font-weight:900}
+</style></head><body>
+<main class="wrap">
+  <h1>🧭 Zajęcia 09 – Wskaż kwadrant (z lektorem)</h1>
+  <section class="panel">
+    <div class="controls">
+      <div><label>Rundy</label><input id="rounds" type="number" min="4" max="40" value="12"/></div>
+      <div><label>Czas na odpowiedź (ms)</label><input id="rt" type="number" min="800" max="6000" step="100" value="3000"/></div>
+      <div><label>Kontrast</label><select id="contrast"><option value="high" selected>Wysoki</option><option value="mid">Średni</option><option value="low">Niski</option></select></div>
+      <div><label>Lektor</label><select id="tts"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+      <div style="align-self:end"><button id="start" class="primary">START</button></div>
+    </div>
+    <p class="note">Zadanie: po komendzie lektora kliknij odpowiedni kwadrant planszy: <b>lewy górny</b>, <b>prawy górny</b>, <b>lewy dolny</b>, <b>prawy dolny</b>. Możesz też użyć klawiszy strzałek.</p>
+    <div id="board" class="board" aria-label="Plansza 2×2 – kwadranty">
+      <div class="badge"><b>Cel:</b> <span id="goal">—</span></div>
+    </div>
+    <div class="keys">
+      <button class="k" data-k="ArrowUp">↑</button><div></div><button class="k" data-k="ArrowRight">→</button>
+      <button class="k" data-k="ArrowLeft">←</button><div></div><button class="k" data-k="ArrowDown">↓</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>Runda:</b> <span id="n">0 / 0</span></div>
+      <div class="stat"><b>OK:</b> <span id="ok">0</span></div>
+      <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+      <div class="stat"><b>Timeout:</b> <span id="to">0</span></div>
+    </div>
+  </section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+
+let voiceOn=true; $('#tts').addEventListener('change',e=>{voiceOn=e.target.value==='on'; if(!voiceOn&&'speechSynthesis'in window) try{speechSynthesis.cancel();}catch(_){}});
+function say(t){ if(!voiceOn||!('speechSynthesis'in window))return; try{ const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; u.rate=0.98; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(_){ } }
+
+const board=$('#board'); const goalLbl=$('#goal');
+let cells=[], timer=null, st={total:12,i:0,target:null,phase:'idle'};
+
+function colorByContrast(){
+  const v=$('#contrast').value;
+  if(v==='high') return {bg:'#0b0b0b', border:'#26C6DA'};
+  if(v==='mid')  return {bg:'#111', border:'#80DEEA'};
+  return {bg:'#151515', border:'#B0BEC5'};
+}
+
+function layout(){
+  const C=colorByContrast();
+  board.style.background=C.bg; board.style.borderColor=C.border;
+  board.innerHTML='<div class="badge"><b>Cel:</b> <span id="goal">—</span></div>';
+  cells=[];
+  // 2x2
+  for(let r=0;r<2;r++){
+    for(let c=0;c<2;c++){
+      const d=document.createElement('button');
+      d.className='cell';
+      d.style.left=(c*50+2)+'%'; d.style.top=(r*50+2)+'%';
+      d.style.width='46%'; d.style.height='46%';
+      d.style.borderColor=C.border;
+      d.addEventListener('click',()=>choose(r,c));
+      cells.push(d);
+      board.appendChild(d);
+    }
+  }
+  // re-bind goalLbl
+  window.goalLbl = document.getElementById('goal');
+}
+
+const TARGETS=[
+  {r:0,c:0,name:'lewy górny', key:'ArrowUpLeft'},
+  {r:0,c:1,name:'prawy górny', key:'ArrowUpRight'},
+  {r:1,c:0,name:'lewy dolny', key:'ArrowDownLeft'},
+  {r:1,c:1,name:'prawy dolny', key:'ArrowDownRight'},
+];
+
+function pick(){
+  const t=TARGETS[Math.floor(Math.random()*TARGETS.length)];
+  st.target=t;
+  window.goalLbl.textContent=t.name;
+  say('Kliknij: ' + t.name);
+  clearTimeout(timer);
+  timer=setTimeout(()=>{ inc('to'); say('czas minął'); next(); }, parseInt($('#rt').value)||3000);
+}
+
+function next(){
+  st.i++; $('#n').textContent=`${Math.min(st.i,st.total)} / ${st.total}`;
+  if(st.i>st.total){ st.phase='idle'; say('Koniec ćwiczenia'); return; }
+  st.phase='wait'; clearMarks(); pick();
+}
+
+function clearMarks(){ cells.forEach(el=>{ el.classList.remove('hit','miss'); }); }
+
+function choose(r,c){
+  if(st.phase!=='wait') return;
+  clearTimeout(timer);
+  const ok = (st.target && st.target.r===r && st.target.c===c);
+  const idx=r*2+c;
+  cells[idx].classList.add(ok?'hit':'miss');
+  if(ok){ say('dobrze'); inc('ok'); } else { say('błąd'); inc('err'); }
+  setTimeout(next, 400);
+}
+
+function inc(id){ const el=document.getElementById(id); el.textContent=String(parseInt(el.textContent||'0')+1); }
+
+function start(){
+  st.total = Math.max(4, Math.min(40, parseInt($('#rounds').value)||12));
+  st.i=0; ['ok','err','to'].forEach(id=>document.getElementById(id).textContent='0');
+  layout(); next();
+}
+
+document.getElementById('start').addEventListener('click', start);
+
+// Klawisze – mapowanie strzałek: ↑=góra (lewy/prawy zależnie od ostatniego kliknięcia?)
+// Tu uproszczenie: użyjemy strzałek + Shift do lewej/prawej, ale dla dostępności dodamy osobne przyciski.
+const mapKey=(code)=>{
+  if(st.phase!=='wait') return;
+  if(code==='ArrowUp') choose(0, 0); // Up = lewy górny
+  else if(code==='ArrowRight') choose(0, 1); // Right = prawy górny
+  else if(code==='ArrowLeft') choose(1, 0); // Left = lewy dolny
+  else if(code==='ArrowDown') choose(1, 1); // Down = prawy dolny
+};
+
+window.addEventListener('keydown',e=>{
+  if(['ArrowUp','ArrowRight','ArrowLeft','ArrowDown'].includes(e.code)){ e.preventDefault(); mapKey(e.code); }
+});
+document.querySelectorAll('.k').forEach(b=>b.addEventListener('click',()=>mapKey(b.dataset.k)));
+// Init layout static
+layout();
+</script></body></html>

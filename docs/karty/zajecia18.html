@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 18 – Skanowanie liter (naprawa START)</title>
+<style>
+:root{--accent:#00E0FF; --gap:10px; --rad:14px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1000px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent)}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:.95rem;color:#bbb;margin:4px 0 0}
+.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
+.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
+.cell.target{background:#062a2f;border-style:solid}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.hint{font-weight:800}
+.bad{outline:3px solid #ff4d4d}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>🔎 Zajęcia 18 – Skanowanie liter</h1>
+  <section class="panel">
+    <div class="controls">
+      <div>
+        <label for="gridSel18">Liczba pól</label>
+        <select id="gridSel18">
+          <option value="12">12</option>
+          <option value="16" selected>16</option>
+          <option value="20">20</option>
+        </select>
+      </div>
+      <div>
+        <label for="ttsSel18">Lektor</label>
+        <select id="ttsSel18">
+          <option value="on" selected>Włączony</option>
+          <option value="off">Wyłączony</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="primary" id="goal18">🔊 Odczytaj cel</button>
+        <button class="primary" id="start18">START</button>
+      </div>
+    </div>
+    <p class="small">Zadanie: szybko <span class="hint">znajdź i kliknij wskazaną literę</span> na planszy. Liczniki zliczają poprawne i błędne reakcje. Brak auto‑timeoutu.</p>
+  </section>
+
+  <section class="panel">
+    <div id="targetInfo18" class="small">Cel: —</div>
+    <div id="board18" class="board" aria-live="polite"></div>
+    <div class="stats">
+      <div class="stat"><b>Próba:</b> <span id="pos18">0</span>/<span id="total18">0</span></div>
+      <div class="stat"><b>Poprawne:</b> <span id="ok18">0</span></div>
+      <div class="stat"><b>Błędy:</b> <span id="err18">0</span></div>
+      <div class="stat"><b>Śr. czas reakcji:</b> <span id="rt18">–</span></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let voice18 = true;
+$('#ttsSel18').addEventListener('change', e => { voice18 = e.target.value === 'on'; if(!voice18 && 'speechSynthesis' in window) try{ speechSynthesis.cancel(); } catch(_) {} });
+function say18(t){ if(!voice18 || !('speechSynthesis' in window)) return; try{ speechSynthesis.cancel(); } catch(_) {} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u); }
+$('#goal18').addEventListener('click', ()=> say18('Celem jest wyszukanie wskazanej litery na planszy i kliknięcie jej.'));
+
+const LETTERS = 'AĄBCĆDEĘFGHIJKLŁMNŃOÓPRSŚTUWYZŹŻ'.split('');
+let N18=16, total18=12, pos18=0, ok18=0, err18=0, rts18=[], tShow18=0, awaiting18=false, target18='', busy18=false;
+
+function buildGrid18(n){
+  const g = $('#board18'); g.innerHTML='';
+  for(let i=0;i<n;i++){ const d=document.createElement('button'); d.className='cell'; d.addEventListener('click', ()=>onPick18(d)); g.appendChild(d); }
+}
+
+function prepareTrial18(){
+  const cells = Array.from(document.querySelectorAll('#board18 .cell'));
+  cells.forEach(c=>{ c.textContent=''; c.classList.remove('target','bad'); });
+  target18 = LETTERS[Math.floor(Math.random()*LETTERS.length)];
+  $('#targetInfo18').textContent = 'Cel: ' + target18;
+  const pool = LETTERS.filter(x=>x!==target18);
+  const targetIdx = Math.floor(Math.random()*N18);
+  for(let i=0;i<N18;i++){
+    const el=cells[i];
+    if(i===targetIdx){ el.textContent=target18; el.classList.add('target'); }
+    else { el.textContent = pool[Math.floor(Math.random()*pool.length)]; }
+  }
+  awaiting18=true; tShow18=performance.now();
+}
+
+function onPick18(el){
+  if(!awaiting18 || busy18) return;
+  busy18=true;
+  const rt = Math.round(performance.now()-tShow18);
+  rts18.push(rt);
+  if(el.classList.contains('target')){ ok18++; say18('dobrze'); }
+  else { err18++; el.classList.add('bad'); say18('spróbuj ponownie'); }
+  $('#ok18').textContent=String(ok18); $('#err18').textContent=String(err18);
+  const times=rts18.filter(v=>Number.isFinite(v)); $('#rt18').textContent = times.length? Math.round(times.reduce((a,b)=>a+b,0)/times.length)+' ms':'–';
+  awaiting18=false; pos18++;
+  setTimeout(()=>{ busy18=false; if(pos18>=total18){ finish18(); } else { $('#pos18').textContent=String(pos18+1); prepareTrial18(); }}, 150);
+}
+
+function start18(){
+  N18 = Number($('#gridSel18').value);
+  total18 = N18; pos18=0; ok18=0; err18=0; rts18=[]; awaiting18=false; busy18=false;
+  $('#total18').textContent=String(total18); $('#pos18').textContent=String(pos18+1); $('#ok18').textContent='0'; $('#err18').textContent='0'; $('#rt18').textContent='–';
+  buildGrid18(N18);
+  say18('Zaczynamy. Wyszukaj wskazaną literę i kliknij.');
+  setTimeout(prepareTrial18, 300);
+}
+
+function finish18(){ say18('Koniec. Świetna praca.'); const g=$('#board18'); const end=document.createElement('div'); end.className='cell'; end.textContent='KONIEC'; end.style.gridColumn='1 / -1'; end.style.minHeight='64px'; g.appendChild(end); }
+
+document.getElementById('start18').addEventListener('click', start18);
+buildGrid18(16);
+</script>
+</body>
+</html>

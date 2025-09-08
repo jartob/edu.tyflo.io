@@ -1,0 +1,32 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 02 – Integracja i ćwiczenia wzrokowe</title>
+<style>:root{--scale:1.0;--accent:#26C6DA}*{box-sizing:border-box}body{margin:0;font-family:system-ui;background:#000;color:#fff;font-size:calc(18px*var(--scale))}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}.panel{border:2px solid var(--accent);border-radius:16px;background:#0e0e0e;padding:16px;margin:12px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}input,select,button{width:100%;padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px}
+button.primary{background:var(--accent);color:#000;font-weight:800;cursor:pointer}.field{display:grid;gap:10px;border:3px dashed var(--accent);border-radius:16px;padding:14px}
+.cell{border:2px solid var(--accent);border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:calc(1.8rem*var(--scale));cursor:pointer;background:#000}
+.good{box-shadow:0 0 0 3px #59ff9a inset}.bad{box-shadow:0 0 0 3px #ff5959 inset}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:10px;color:#ddd}</style></head><body>
+<main class="wrap"><h1>👁️ Zajęcia 02 – Integracja i ćwiczenia wzrokowe</h1>
+<section class="panel"><div class="controls">
+  <div><label>Rozmiar siatki</label><select id="size"><option>3</option><option selected>4</option><option>5</option><option>6</option></select></div>
+  <div><label>Liczba celów</label><input id="targets" type="number" min="1" max="36" value="6"/></div>
+  <div><label>Cel</label><select id="goal"><option value="T">Litera T</option><option value="L">Litera L</option><option value="shape">Kwadrat ■</option></select></div>
+  <div style="align-self:end"><button id="start" class="primary">NOWA RUNDA</button></div>
+</div>
+<div id="field" class="field" style="grid-template-columns:repeat(4,1fr)"></div>
+<div class="stats"><div class="stat"><b>Do znalezienia:</b> <span id="left">0</span></div><div class="stat"><b>OK:</b> <span id="ok">0</span></div><div class="stat"><b>Błędy:</b> <span id="err">0</span></div></div>
+</section></main>
+<script>
+const $=s=>document.querySelector(s); const LETTERS='A B C D E F H I K M N O P R S U W Y Z'.split(' ');
+const el={size:$('#size'),targets:$('#targets'),goal:$('#goal'),field:$('#field')}; let left=0,ok=0,err=0;
+function rand(a){return a[Math.floor(Math.random()*a.length)];}
+function build(){ const N=parseInt(el.size.value)||4; el.field.style.gridTemplateColumns=`repeat(${N},1fr)`; el.field.innerHTML='';
+  const total=N*N; left=Math.min(parseInt(el.targets.value)||6,total); ok=0; err=0; $('#left').textContent=left; $('#ok').textContent='0'; $('#err').textContent='0';
+  const cells=[]; for(let i=0;i<total;i++){ const b=document.createElement('button'); b.className='cell'; b.textContent=rand(LETTERS); cells.push(b); el.field.appendChild(b); }
+  const tgt = el.goal.value==='shape'?'■':el.goal.value; const idxs=[...Array(total).keys()].sort(()=>Math.random()-0.5).slice(0,left);
+  idxs.forEach(i=>{ cells[i].dataset.tgt='1'; cells[i].textContent=tgt; });
+  cells.forEach(b=> b.addEventListener('click',()=>{ if(b.dataset.done) return; if(b.dataset.tgt==='1'){ b.classList.add('good'); b.dataset.done='1'; ok++; left--; $('#ok').textContent=ok; $('#left').textContent=left; } else { b.classList.add('bad'); setTimeout(()=>b.classList.remove('bad'),260); err++; $('#err').textContent=err; } }));
+}
+$('#start').addEventListener('click', build); build();
+</script></body></html>

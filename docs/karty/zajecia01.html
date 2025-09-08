@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zajęcia 01 – Orientacja przestrzenna</title>
+<style>
+:root{--accent:#00E0FF}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1000px;margin:0 auto;padding:24px}
+h1{margin:0 0 8px;color:var(--accent)}
+.panel{border:2px solid var(--accent);border-radius:16px;background:#0e0e0e;padding:16px;margin:12px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+label{display:block;margin-bottom:6px}
+select,button{padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.grid{display:grid;gap:10px;margin-top:12px}
+.cell{border:2px dashed var(--accent);border-radius:12px;min-height:80px;display:flex;align-items:center;justify-content:center;font-weight:900}
+.start-msg{font-size:1.1rem;color:#bbb}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:10px;color:#ddd}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:8px}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>🧭 Zajęcia 01 – Orientacja przestrzenna</h1>
+
+  <section class="panel">
+    <p><b>Cel:</b> Rozpoznawanie położenia bodźców w przestrzeni ekranu: <i>góra</i>, <i>dół</i>, <i>lewo</i>, <i>prawo</i>, <i>środek</i>.</p>
+    <div class="controls">
+      <div>
+        <label for="gridSel">Układ siatki</label>
+        <select id="gridSel">
+          <option value="3x3">3 × 3 (domyślnie)</option>
+          <option value="5x5">5 × 5</option>
+        </select>
+      </div>
+      <div>
+        <label for="ttsSel">Lektor</label>
+        <select id="ttsSel">
+          <option value="on" selected>Włączony</option>
+          <option value="off">Wyłączony</option>
+        </select>
+      </div>
+      <div style="align-self:end;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="primary" id="btnGoal">🔊 Odczytaj cel</button>
+        <button class="primary" id="btnStart">START</button>
+      </div>
+    </div>
+    <p class="start-msg">Po naciśnięciu START wylosuję pozycję. Twoim zadaniem jest nacisnąć odpowiedni przycisk kierunku.</p>
+  </section>
+
+  <section class="panel">
+    <div id="board" class="grid"></div>
+    <div class="controls" style="margin-top:10px">
+      <button id="up">↑ GÓRA</button>
+      <button id="down">↓ DÓŁ</button>
+      <button id="left">← LEWO</button>
+      <button id="right">→ PRAWO</button>
+      <button id="center">● ŚRODEK</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>Próby:</b> <span id="tries">0</span></div>
+      <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+      <div class="stat"><b>Czas reakcji:</b> <span id="rt">–</span> ms</div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+
+let voice = true;
+$('#ttsSel').addEventListener('change', e => {
+  voice = e.target.value === 'on';
+  if(!voice && 'speechSynthesis' in window) try{ speechSynthesis.cancel(); } catch(_) {}
+});
+function speak(txt){
+  if(!voice || !('speechSynthesis' in window)) return;
+  try{ speechSynthesis.cancel(); } catch(_) {}
+  const u = new SpeechSynthesisUtterance(txt);
+  u.lang = 'pl-PL';
+  speechSynthesis.speak(u);
+}
+$('#btnGoal').addEventListener('click', ()=>{
+  speak('Celem jest rozpoznawanie położenia bodźców: góra, dół, lewo, prawo oraz środek.');
+});
+
+const dirs = ["up","down","left","right","center"];
+const labels = {up:"góra",down:"dół",left:"lewo",right:"prawo",center:"środek"};
+
+let target = null;
+let tStart = 0;
+let tries = 0, ok = 0;
+
+function buildGrid(){
+  const sel = $('#gridSel').value; // '3x3' lub '5x5'
+  const [r,c] = sel.split('x').map(Number);
+  const board = $('#board');
+  board.style.gridTemplateColumns = `repeat(${c}, 1fr)`;
+  board.innerHTML = "";
+  const total = r*c;
+  for(let i=0;i<total;i++){
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    board.appendChild(cell);
+  }
+}
+
+function showStim(){
+  const sel = $('#gridSel').value;
+  const [r,c] = sel.split('x').map(Number);
+  const cells = Array.from(document.querySelectorAll('.cell'));
+  cells.forEach(el=>{ el.textContent = ""; el.style.background="transparent"; el.style.borderStyle="dashed"; });
+
+  const idxTop = [...Array(c).keys()].map(j=>j);
+  const idxBottom = [...Array(c).keys()].map(j=>(r-1)*c + j);
+  const idxLeft = [...Array(r).keys()].map(i=>i*c);
+  const idxRight = [...Array(r).keys()].map(i=>i*c + (c-1));
+  const idxCenter = Math.floor(r/2)*c + Math.floor(c/2);
+
+  target = dirs[Math.floor(Math.random()*dirs.length)];
+
+  let pick;
+  if(target==="up") pick = idxTop[Math.floor(Math.random()*idxTop.length)];
+  if(target==="down") pick = idxBottom[Math.floor(Math.random()*idxBottom.length)];
+  if(target==="left") pick = idxLeft[Math.floor(Math.random()*idxLeft.length)];
+  if(target==="right") pick = idxRight[Math.floor(Math.random()*idxRight.length)];
+  if(target==="center") pick = idxCenter;
+
+  const selCell = cells[pick];
+  selCell.textContent = "●";
+  selCell.style.background = "#062a2f";
+  selCell.style.borderStyle = "solid";
+
+  tStart = performance.now();
+  speak(`Pokaż ${labels[target]}.`);
+}
+
+function start(){
+  tries = 0; ok = 0;
+  $('#tries').textContent = tries;
+  $('#ok').textContent = ok;
+  $('#rt').textContent = '–';
+  buildGrid();
+  showStim();
+}
+
+function respond(dir){
+  if(!target) return;
+  const t = performance.now() - tStart;
+  $('#tries').textContent = (++tries);
+  if(dir === target){
+    $('#ok').textContent = (++ok);
+    $('#rt').textContent = Math.round(t);
+    speak('Dobrze.');
+  }else{
+    speak('Spróbuj jeszcze raz.');
+  }
+  setTimeout(showStim, 600);
+}
+
+document.getElementById('btnStart').addEventListener('click', start);
+document.getElementById('up').addEventListener('click', ()=>respond('up'));
+document.getElementById('down').addEventListener('click', ()=>respond('down'));
+document.getElementById('left').addEventListener('click', ()=>respond('left'));
+document.getElementById('right').addEventListener('click', ()=>respond('right'));
+document.getElementById('center').addEventListener('click', ()=>respond('center'));
+
+buildGrid();
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zajęcia 23 – Wyszukiwanie wzrokowe (znajdź cel)</title>
+<style>
+  :root { --scale: 1.0; --accent:#6AA8FF; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#000; color:#fff; font-size:calc(18px * var(--scale)); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: calc(2rem * var(--scale)); margin: 0 0 8px; }
+  .note { font-size: calc(1rem * var(--scale)); color:#cfe1ff; }
+  .controls { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
+  label { display:block; margin-bottom:6px; }
+  input[type="number"], input[type="range"], select, button { width:100%; padding:12px 14px; font-size:calc(1rem * var(--scale)); background:#000; color:#fff; border:2px solid var(--accent); border-radius:12px; }
+  button.primary { background:var(--accent); color:#000; border-color:var(--accent); font-weight:800; cursor:pointer; }
+  .panel { border:2px solid var(--accent); border-radius:16px; background:#111; padding:16px; margin-bottom:14px; }
+  .display { border:3px dashed var(--accent); border-radius:16px; min-height: 26vh; display:flex; align-items:center; justify-content:center; text-align:center; padding:16px; position:relative; gap:12px; flex-wrap:wrap; }
+  .grid { display:grid; gap:10px; margin-top:12px; }
+  .cell { display:flex; align-items:center; justify-content:center; border:2px solid var(--accent); border-radius:12px; padding:18px; cursor:pointer; background:#000; color:#fff; font-weight:900; font-size:calc(2rem * var(--scale)); min-height:90px; }
+  .good { box-shadow:0 0 0 3px #59ff9a inset; }
+  .bad  { box-shadow:0 0 0 3px #ff5959 inset; }
+  .stat { background:#111; border:1px solid #333; border-radius:12px; padding:10px; color:#ddd; }
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:10px; margin-top:12px; }
+  .barwrap { width:100%; height:12px; background:#222; border-radius:8px; overflow:hidden; border:1px solid #333; }
+  .bar { height:100%; background:#6AA8FF; width:100%; transition:width .1s linear; }
+  .pill { min-width:48px; padding:8px 12px; border:2px solid var(--accent); border-radius:999px; font-weight:800; background:#000; color:#fff; }
+  .k { display:inline-flex; min-width:56px; padding:6px 10px; border:2px solid var(--accent); border-radius:8px; margin: 0 4px; font-weight:800; }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>🔎 Zajęcia 23 – Wyszukiwanie wzrokowe (znajdź cel)</h1>
+    <p class="note">W siatce wyszukaj <b>CEL</b> i wskaż go myszą lub klawiszami <span class="k">↑</span><span class="k">↓</span><span class="k">←</span><span class="k">→</span> + <span class="k">Enter</span>. Poziom trudności decyduje o podobieństwie elementów.</p>
+
+    <section class="panel">
+      <div class="controls">
+        <div><label>Wielkość: <span id="fontVal">100%</span></label><input id="fontsize" type="range" min="80" max="180" step="5" value="100" /></div>
+        <div><label>Kontrast</label><select id="theme"><option value="dark">Ciemny</option><option value="light">Jasny</option></select></div>
+        <div><label>Lektor</label><select id="tts"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+        <div><label>Trudność</label><select id="level"><option value="easy">Łatwy</option><option value="mid" selected>Średni</option><option value="hard">Trudny (sprzężone cechy)</option></select></div>
+        <div><label>Rozmiar siatki</label><select id="size"><option>4</option><option selected>5</option><option>6</option><option>7</option></select></div>
+        <div><label>Rundy</label><input id="rounds" type="number" min="6" max="60" value="12" /></div>
+        <div><label>Limit czasu (ms)</label><input id="limit" type="number" min="1000" max="20000" step="250" value="8000" /></div>
+        <div style="align-self:end"><button id="start" class="primary">START</button></div>
+      </div>
+
+      <div class="display" id="disp">
+        <div class="pill">CEL: <span id="tchar">—</span> <span id="tdesc" class="note"></span></div>
+        <div class="barwrap" style="flex:1 1 100%;"><div class="bar" id="bar"></div></div>
+      </div>
+
+      <div class="grid" id="grid" style="grid-template-columns: repeat(5, 1fr);"></div>
+
+      <div class="stats">
+        <div class="stat"><b>Runda:</b> <span id="n">0 / 0</span></div>
+        <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+        <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+        <div class="stat"><b>Timeouty:</b> <span id="miss">0</span></div>
+        <div class="stat"><b>Ostatni czas:</b> <span id="rt">—</span></div>
+        <div class="stat"><b>Najlepsza:</b> <span id="best">—</span></div>
+        <div class="stat"><b>Średnia:</b> <span id="avg">—</span></div>
+        <div class="stat"><b>Skuteczność:</b> <span id="acc">—</span></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+// Helpers
+function $(s){ return document.querySelector(s); }
+let voiceOn = true;
+$('#tts').addEventListener('change', (e)=>{ voiceOn = e.target.value==='on'; if(!voiceOn && 'speechSynthesis' in window) window.speechSynthesis.cancel(); });
+function say(txt){ if(!voiceOn) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(txt); u.lang='pl-PL'; u.rate=0.95; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
+
+const font = $('#fontsize'); const fontVal = $('#fontVal');
+font.addEventListener('input', ()=>{ const v=parseInt(font.value,10); fontVal.textContent=v+'%'; document.documentElement.style.setProperty('--scale', (v/100)); });
+const theme = $('#theme');
+theme.addEventListener('change', (e)=>{ const v=e.target.value; document.body.style.background = v==='light' ? '#fff' : '#000'; document.body.style.color = v==='light' ? '#000' : '#6AA8FF'; document.querySelectorAll('.panel,input,select,button,.display,.cell').forEach(el=>{ el.style.borderColor = v==='light' ? '#000' : getComputedStyle(document.documentElement).getPropertyValue('--accent'); }); });
+
+// Elements
+const el = {
+  level: $('#level'), size: $('#size'), rounds: $('#rounds'), limit: $('#limit'), start: $('#start'),
+  grid: $('#grid'), disp: $('#disp'), bar: $('#bar'), tchar: $('#tchar'), tdesc: $('#tdesc'),
+  n: $('#n'), ok: $('#ok'), err: $('#err'), miss: $('#miss'), rt: $('#rt'), best: $('#best'), avg: $('#avg'), acc: $('#acc')
+};
+
+// Difficulty sets
+const SETS = {
+  easy: [
+    {target:{key:'KOŁO PEŁNE', char:'●'}, dist:['■','▲','✕','✚']},
+    {target:{key:'KWADRAT PUSTY', char:'□'}, dist:['●','△','◇','◆']},
+    {target:{key:'TRÓJKĄT', char:'▲'}, dist:['●','■','◆','✕']}
+  ],
+  mid: [
+    {target:{key:'E', char:'E'}, dist:['F','C','B','R']},
+    {target:{key:'H', char:'H'}, dist:['M','N','K','A']},
+    {target:{key:'T', char:'T'}, dist:['F','Y','I','L']}
+  ],
+  hard: [
+    // Conjunction: target ▲ (filled); distractors mix: △ (outline triangle) and ■ (filled square)
+    {target:{key:'TRÓJKĄT PEŁNY', char:'▲'}, distMix:['△','■']},
+    // Another: target ■ (outline); distractors mix: □ (outline square) and ▲ (filled triangle) -> Actually □ same feature outline; to create conjunction better: target ◆ filled; distractors ◇ outline and ■ filled
+    {target:{key:'ROMB PEŁNY', char:'◆'}, distMix:['◇','■']},
+    {target:{key:'KOŁO PUSTE', char:'○'}, distMix:['●','□']}
+  ]
+};
+
+const st = { total:12, n:0, ok:0, err:0, miss:0, best:null, rts:[], t0:0, timer:null, size:5, ans:-1, focus:0 };
+
+function buildGrid(size, roundSpec){
+  const total=size*size; const arr=new Array(total).fill(null);
+  const targetIdx=Math.floor(Math.random()*total);
+  el.grid.style.gridTemplateColumns=`repeat(${size},1fr)`; el.grid.innerHTML='';
+
+  // Decide distractors
+  let pickChar;
+  if(roundSpec.dist){ // easy/mid
+    pickChar = ()=> roundSpec.dist[Math.floor(Math.random()*roundSpec.dist.length)];
+  } else if(roundSpec.distMix){ // hard
+    pickChar = ()=> roundSpec.distMix[Math.floor(Math.random()*roundSpec.distMix.length)];
+  } else {
+    pickChar = ()=> '■';
+  }
+
+  for(let i=0;i<total;i++){
+    const b=document.createElement('button'); b.className='cell'; b.textContent = (i===targetIdx? roundSpec.target.char : pickChar());
+    b.addEventListener('click',()=>choose(i,targetIdx)); b.addEventListener('focus',()=>{ st.focus=i; });
+    el.grid.appendChild(b);
+  }
+  st.ans=targetIdx; st.focus=0; el.grid.children[0]?.focus();
+}
+
+function upd(){
+  el.n.textContent=`${Math.min(st.n,st.total)} / ${st.total}`; el.ok.textContent=st.ok; el.err.textContent=st.err; el.miss.textContent=st.miss;
+  el.best.textContent = st.best===null?'—':Math.round(st.best)+' ms';
+  if(st.rts.length){ const m=Math.round(st.rts.reduce((a,b)=>a+b,0)/st.rts.length); el.avg.textContent=m+' ms'; const acc=Math.round(100*(st.ok/(st.n-1||1))); el.acc.textContent=acc+'%'; } else { el.avg.textContent='—'; el.acc.textContent='—'; }
+}
+
+function next(){
+  clearTimeout(st.timer); st.n++; upd();
+  if(st.n>st.total){ el.tchar.textContent='✓'; el.tdesc.textContent='KONIEC'; el.bar.style.width='0%'; say('Koniec ćwiczenia'); return; }
+
+  const pool = SETS[el.level.value]; const spec = pool[Math.floor(Math.random()*pool.length)];
+  st.size=parseInt(el.size.value)||5; el.tchar.textContent=spec.target.char; el.tdesc.textContent=spec.target.key; 
+  buildGrid(st.size,spec);
+
+  const limit=parseInt(el.limit.value)||8000; const t0=performance.now(); st.t0=t0;
+  function tick(){ const left=Math.max(0, limit-(performance.now()-t0)); el.bar.style.width=(left/limit*100)+'%';
+    if(left<=0){ st.miss++; el.miss.textContent=st.miss; [...el.grid.children].forEach(c=>c.classList.remove('good','bad')); setTimeout(next, 600); } else st.timer=setTimeout(tick,80); } tick();
+}
+
+function choose(i, ans){
+  const rt=Math.max(0, performance.now()-st.t0); clearTimeout(st.timer); el.rt.textContent=Math.round(rt)+' ms';
+  const cell = el.grid.children[i];
+  if(i===ans){ st.ok++; st.rts.push(rt); st.best=st.best===null?rt:Math.min(st.best,rt); cell.classList.add('good'); }
+  else{ st.err++; cell.classList.add('bad'); }
+  upd(); setTimeout(next, 550);
+}
+
+$('#start').addEventListener('click', ()=>{ st.n=0; st.ok=0; st.err=0; st.miss=0; st.best=null; st.rts=[]; next(); });
+window.addEventListener('keydown', (e)=>{
+  if(['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement?.tagName)) return;
+  const size=st.size; const r=Math.floor(st.focus/size), c=st.focus%size;
+  if(e.code==='ArrowUp'){ e.preventDefault(); const nr=(r-1+size)%size; st.focus=nr*size+c; el.grid.children[st.focus]?.focus(); }
+  if(e.code==='ArrowDown'){ e.preventDefault(); const nr=(r+1)%size; st.focus=nr*size+c; el.grid.children[st.focus]?.focus(); }
+  if(e.code==='ArrowLeft'){ e.preventDefault(); const nc=(c-1+size)%size; st.focus=r*size+nc; el.grid.children[st.focus]?.focus(); }
+  if(e.code==='ArrowRight'){ e.preventDefault(); const nc=(c+1)%size; st.focus=r*size+nc; el.grid.children[st.focus]?.focus(); }
+  if(e.code==='Enter'){ e.preventDefault(); el.grid.children[st.focus]?.click(); }
+});
+</script>
+</body>
+</html>

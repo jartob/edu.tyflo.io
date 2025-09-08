@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zajęcia 13 – Pamięć: pary (12 pól, kształty)</title>
+<style>
+:root{--accent:#00E0FF}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:24px}
+h1{margin:0 0 8px;color:var(--accent)}
+.panel{border:2px solid var(--accent);border-radius:16px;background:#0e0e0e;padding:16px;margin:12px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button{padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.grid{display:grid;gap:10px;margin-top:12px}
+/* Responsywny układ – małe kwadraty w kolumnach, mieści się na ekranie */
+.grid.responsive{grid-template-columns:repeat(auto-fit,minmax(90px,1fr))}
+.card{aspect-ratio:1/1;border:2px solid var(--accent);border-radius:12px;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:2rem;cursor:pointer}
+.card.hidden{color:#000;border-style:dashed}
+.card.matched{opacity:.45;pointer-events:none}
+.note{color:#bbb}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:8px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:10px;color:#ddd}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>🧠 Zajęcia 13 – Pamięć: pary</h1>
+  <section class="panel">
+    <p class="note"><b>Wersja:</b> 12 pól (6 par) z prostymi kształtami, ułożone kolumnowo, czytelne dla słabowidzących.</p>
+    <div class="controls">
+      <div>
+        <label for="ttsSel">Lektor</label>
+        <select id="ttsSel">
+          <option value="on" selected>Włączony</option>
+          <option value="off">Wyłączony</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="primary" id="btnGoal">🔊 Odczytaj cel</button>
+        <button class="primary" id="btnStart">START</button>
+      </div>
+    </div>
+    <p class="note">Zadanie: odkrywaj po dwie karty i znajdź <b>pary takich samych kształtów</b>.</p>
+  </section>
+
+  <section class="panel">
+    <div id="board" class="grid responsive" aria-label="plansza 12 pól – gra w pary"></div>
+    <div class="stats">
+      <div class="stat"><b>Ruchy:</b> <span id="moves">0</span></div>
+      <div class="stat"><b>Pary znalezione:</b> <span id="found">0</span> / <span id="total">6</span></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let voice = true;
+$('#ttsSel').addEventListener('change', e => {
+  voice = e.target.value === 'on';
+  if(!voice && 'speechSynthesis' in window) try{ speechSynthesis.cancel(); } catch(_) {}
+});
+function say(t){
+  if(!voice || !('speechSynthesis' in window)) return;
+  try{ speechSynthesis.cancel(); } catch(_) {}
+  const u = new SpeechSynthesisUtterance(t); u.lang = 'pl-PL'; speechSynthesis.speak(u);
+}
+$('#btnGoal').addEventListener('click', ()=>say('Celem jest ćwiczenie pamięci poprzez odnajdywanie par takich samych kształtów.'));
+
+const SHAPES = ['●','○','■','□','▲','△']; // 6 par
+const TOTAL = 12; // 12 pól
+let deck = [];
+let first = null;
+let lock = false;
+let moves = 0;
+let found = 0;
+
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+function build(){
+  // Zbuduj talię 12 kart (6 symboli x2)
+  deck = shuffle(SHAPES.concat(SHAPES));
+  const board = $('#board');
+  board.innerHTML = '';
+  moves = 0; found = 0; first = null; lock = false;
+  $('#moves').textContent = '0';
+  $('#found').textContent = '0';
+  $('#total').textContent = String(TOTAL/2);
+
+  deck.forEach((sym, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'card hidden';
+    div.setAttribute('data-sym', sym);
+    div.setAttribute('aria-label','zakryta karta');
+    div.addEventListener('click', ()=>onCard(div));
+    board.appendChild(div);
+  });
+  say('Zaczynamy. Znajdź pary kształtów.');
+}
+
+function reveal(el){
+  el.classList.remove('hidden');
+  el.textContent = el.dataset.sym;
+  el.setAttribute('aria-label','karta '+el.dataset.sym);
+}
+function hide(el){
+  el.classList.add('hidden');
+  el.textContent = '';
+  el.setAttribute('aria-label','zakryta karta');
+}
+
+function onCard(el){
+  if(lock || !el.classList.contains('hidden') || el.classList.contains('matched')) return;
+  reveal(el);
+  if(!first){ first = el; return; }
+  const a = first, b = el; first = null; moves++; $('#moves').textContent = String(moves);
+  if(a.dataset.sym === b.dataset.sym){
+    a.classList.add('matched'); b.classList.add('matched');
+    say('para');
+    found++; $('#found').textContent = String(found);
+    if(found === TOTAL/2){ say('Koniec gry. Świetna robota.'); }
+  } else {
+    say('nie pasuje');
+    lock = true;
+    setTimeout(()=>{ hide(a); hide(b); lock = false; }, 700);
+  }
+}
+
+document.getElementById('btnStart').addEventListener('click', build);
+
+// Wstępny podgląd planszy (puste pola)
+(function pre(){
+  const board = $('#board'); board.innerHTML='';
+  for(let i=0;i<TOTAL;i++){ const d=document.createElement('div'); d.className='card hidden'; board.appendChild(d); }
+})();
+</script>
+</body>
+</html>

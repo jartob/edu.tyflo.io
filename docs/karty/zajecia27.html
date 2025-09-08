@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 27 – Zapamiętywanie sekwencji (naprawa liczenia)</title>
+<style>
+:root{--accent:#00E0FF; --gap:10px; --rad:14px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1000px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent)}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:.95rem;color:#bbb;margin:4px 0 0}
+.display{display:flex;align-items:center;justify-content:center;border:2px dashed var(--accent);border-radius:var(--rad);min-height:120px;margin-top:10px;font-size:3rem;gap:16px}
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:10px}
+.sym{border:2px solid var(--accent);border-radius:12px;background:#000;min-height:80px;display:flex;align-items:center;justify-content:center;font-size:2.2rem;font-weight:900;cursor:pointer}
+.sym:disabled{opacity:.5;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.flash{background:#062a2f;border-style:solid}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>🧠 Zajęcia 27 – Zapamiętywanie sekwencji</h1>
+  <section class="panel">
+    <div class="controls">
+      <div>
+        <label for="seqLen">Długość sekwencji</label>
+        <select id="seqLen">
+          <option>3</option>
+          <option selected>4</option>
+          <option>5</option>
+        </select>
+      </div>
+      <div>
+        <label for="trials">Liczba prób</label>
+        <select id="trials">
+          <option>5</option>
+          <option selected>8</option>
+          <option>12</option>
+        </select>
+      </div>
+      <div>
+        <label for="ttsSel">Lektor</label>
+        <select id="ttsSel">
+          <option value="on" selected>Włączony</option>
+          <option value="off">Wyłączony</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="primary" id="goal">🔊 Odczytaj cel</button>
+        <button class="primary" id="start">START</button>
+      </div>
+    </div>
+    <p class="small">Obejrzyj sekwencję symboli, a potem kliknij je w tej samej kolejności. Liczniki poprawnie/błędnie <b>zawsze</b> naliczają się po Twojej odpowiedzi.</p>
+  </section>
+
+  <section class="panel">
+    <div id="display" class="display" aria-live="polite">—</div>
+    <div class="board" id="board"></div>
+    <div class="stats">
+      <div class="stat"><b>Próba:</b> <span id="pos">0</span>/<span id="total">0</span></div>
+      <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+      <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let voice = true;
+$('#ttsSel').addEventListener('change', e => {
+  voice = e.target.value === 'on';
+  if(!voice && 'speechSynthesis' in window) try{ speechSynthesis.cancel(); } catch(_) {}
+});
+function say(t){
+  if(!voice || !('speechSynthesis' in window)) return;
+  try{ speechSynthesis.cancel(); } catch(_) {}
+  const u = new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);
+}
+$('#goal').addEventListener('click', ()=> say('Celem jest zapamiętanie kolejności symboli i odtworzenie jej w tej samej kolejności.'));
+
+const SYMBOLS = ['●','■','▲','◆'];
+let seq = [];
+let input = [];
+let trial = 0, total=0, ok=0, err=0;
+let showing = false;
+
+function setBoardEnabled(enabled){
+  document.querySelectorAll('.sym').forEach(b=> b.disabled = !enabled);
+}
+
+function flash(el){
+  el.classList.add('flash');
+  setTimeout(()=> el.classList.remove('flash'), 250);
+}
+
+function renderBoard(){
+  const board = $('#board');
+  board.innerHTML = '';
+  SYMBOLS.forEach(sym=>{
+    const btn = document.createElement('button');
+    btn.className = 'sym';
+    btn.textContent = sym;
+    btn.addEventListener('click', ()=> onSymbol(sym, btn));
+    board.appendChild(btn);
+  });
+  setBoardEnabled(false);
+}
+
+function showSequence(list){
+  showing = true;
+  setBoardEnabled(false);
+  $('#display').textContent = 'Patrz…';
+  let i=0;
+  const buttons = Array.from(document.querySelectorAll('.sym'));
+  const id = setInterval(()=>{
+    if(i>=list.length){ clearInterval(id); showing=false; $('#display').textContent='Odtwórz sekwencję'; setBoardEnabled(true); return; }
+    const sym = list[i++];
+    const btn = buttons.find(b=>b.textContent===sym);
+    flash(btn);
+    $('#display').textContent = sym;
+  }, 700);
+}
+
+function nextTrial(){
+  if(trial>=total){ finish(); return; }
+  input = [];
+  const L = Number($('#seqLen').value);
+  seq = Array.from({length:L}, _=> SYMBOLS[Math.floor(Math.random()*SYMBOLS.length)]);
+  $('#pos').textContent = String(trial+1);
+  showSequence(seq);
+}
+
+function onSymbol(sym, btn){
+  if(showing) return;
+  input.push(sym);
+  flash(btn);
+  if(input.length === seq.length){
+    // sprawdzamy
+    const correct = input.every((v,i)=> v===seq[i]);
+    if(correct){ ok++; say('dobrze'); } else { err++; say('spróbuj ponownie'); }
+    $('#ok').textContent = String(ok);
+    $('#err').textContent = String(err);
+    trial++;
+    setBoardEnabled(false);
+    setTimeout(nextTrial, 400);
+  }
+}
+
+function start(){
+  total = Number($('#trials').value);
+  trial = 0; ok=0; err=0;
+  $('#total').textContent = String(total);
+  $('#ok').textContent='0'; $('#err').textContent='0'; $('#pos').textContent='0';
+  renderBoard();
+  say('Zaczynamy. Oglądaj sekwencję i odtwórz ją.');
+  setTimeout(nextTrial, 300);
+}
+
+document.getElementById('start').addEventListener('click', start);
+renderBoard();
+</script>
+</body>
+</html>

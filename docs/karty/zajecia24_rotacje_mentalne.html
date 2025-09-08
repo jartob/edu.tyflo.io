@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zajęcia 24 – Rotacje mentalne (dopasuj kształt)</title>
+<style>
+  :root { --scale: 1.0; --accent:#FF6A6A; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#000; color:#fff; font-size:calc(18px * var(--scale)); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: calc(2rem * var(--scale)); margin: 0 0 8px; }
+  .note { font-size: calc(1rem * var(--scale)); color:#ffc9c9; }
+  .controls { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
+  label { display:block; margin-bottom:6px; }
+  input,select,button{width:100%;padding:12px 14px;font-size:calc(1rem * var(--scale));background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;}
+  button.primary{background:var(--accent);color:#000;font-weight:800;cursor:pointer;}
+  .panel { border:2px solid var(--accent); border-radius:16px; background:#111; padding:16px; margin-bottom:14px; }
+  .display { border:3px dashed var(--accent); border-radius:16px; min-height: 28vh; padding:16px; position:relative; text-align:center; }
+  canvas { background:#000; border-radius:12px; }
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:10px; margin-top:12px; }
+  .stat { background:#111; border:1px solid #333; border-radius:12px; padding:10px; color:#ddd; }
+  .k { display:inline-flex; min-width:56px; padding:6px 10px; border:2px solid var(--accent); border-radius:8px; margin: 0 4px; font-weight:800; }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>🔄 Zajęcia 24 – Rotacje mentalne (dopasuj kształt)</h1>
+    <p class="note">Na górze pojawia się wzorzec. Spośród dwóch kształtów na dole wybierz ten, który jest <b>tym samym kształtem obróconym</b>. Wybierz <span class="k">←</span> lub <span class="k">→</span>.</p>
+
+    <section class="panel">
+      <div class="controls">
+        <div><label>Wielkość: <span id="fontVal">100%</span></label><input id="fontsize" type="range" min="80" max="180" step="5" value="100" /></div>
+        <div><label>Kontrast</label><select id="theme"><option value="dark">Ciemny</option><option value="light">Jasny</option></select></div>
+        <div><label>Lektor</label><select id="tts"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+        <div><label>Rundy</label><input id="rounds" type="number" min="6" max="60" value="12" /></div>
+        <div><label>Limit czasu (ms)</label><input id="limit" type="number" min="1000" max="15000" step="250" value="6000" /></div>
+        <div style="align-self:end"><button id="start" class="primary">START</button></div>
+      </div>
+
+      <div class="display">
+        <canvas id="canv" width="600" height="380"></canvas>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><b>Runda:</b> <span id="n">0 / 0</span></div>
+        <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+        <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+        <div class="stat"><b>Timeouty:</b> <span id="miss">0</span></div>
+        <div class="stat"><b>Ostatni czas:</b> <span id="rt">—</span></div>
+        <div class="stat"><b>Średnia:</b> <span id="avg">—</span></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+function $(s){return document.querySelector(s);}
+let voiceOn=true; $('#tts').addEventListener('change',(e)=>{voiceOn=e.target.value==='on';if(!voiceOn&&'speechSynthesis'in window)window.speechSynthesis.cancel();});
+function say(txt){if(!voiceOn)return;if(!('speechSynthesis'in window))return;const u=new SpeechSynthesisUtterance(txt);u.lang='pl-PL';u.rate=0.95;window.speechSynthesis.cancel();window.speechSynthesis.speak(u);}
+
+const el={start:$('#start'),rounds:$('#rounds'),limit:$('#limit'),n:$('#n'),ok:$('#ok'),err:$('#err'),miss:$('#miss'),rt:$('#rt'),avg:$('#avg'),canv:$('#canv')};
+const ctx=el.canv.getContext('2d');
+
+const SHAPES=[
+  [[0,0],[40,0],[20,40]], // triangle
+  [[0,0],[40,0],[40,40],[0,40]], // square
+  [[0,0],[60,0],[30,30]], // wide triangle
+  [[0,0],[50,0],[25,50]] // variant
+];
+
+let st={total:12,n:0,ok:0,err:0,miss:0,rts:[],t0:0,ans:0,timer:null};
+
+function drawShape(poly,x,y,ang,color){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang*Math.PI/180); ctx.beginPath(); ctx.moveTo(poly[0][0],poly[0][1]);
+  for(let i=1;i<poly.length;i++) ctx.lineTo(poly[i][0],poly[i][1]);
+  ctx.closePath(); ctx.fillStyle=color; ctx.fill(); ctx.restore();
+}
+
+function trial(){
+  clearTimeout(st.timer); ctx.clearRect(0,0,el.canv.width,el.canv.height);
+  st.n++; el.n.textContent=`${Math.min(st.n,st.total)} / ${st.total}`;
+  if(st.n>st.total){say('Koniec ćwiczenia');return;}
+
+  const shape=SHAPES[Math.floor(Math.random()*SHAPES.length)];
+  const ang=Math.floor(Math.random()*360);
+  drawShape(shape,300,100,0,'#FF6A6A');
+
+  const leftAng=Math.floor(Math.random()*360);
+  const rightAng=Math.floor(Math.random()*360);
+  const correct=Math.random()<0.5?'L':'R';
+  st.ans=correct; st.t0=performance.now();
+  if(correct==='L') drawShape(shape,180,270,leftAng,'#fff'), drawShape(SHAPES[Math.floor(Math.random()*SHAPES.length)],420,270,rightAng,'#fff');
+  else drawShape(SHAPES[Math.floor(Math.random()*SHAPES.length)],180,270,leftAng,'#fff'), drawShape(shape,420,270,rightAng,'#fff');
+
+  const limit=parseInt(el.limit.value)||6000;
+  st.timer=setTimeout(()=>{st.miss++;el.miss.textContent=st.miss;trial();},limit);
+}
+
+function press(dir){
+  const rt=Math.max(0,performance.now()-st.t0); clearTimeout(st.timer); el.rt.textContent=Math.round(rt)+' ms';
+  if((dir==='L'&&st.ans==='L')||(dir==='R'&&st.ans==='R')){st.ok++;st.rts.push(rt);}else st.err++;
+  el.ok.textContent=st.ok; el.err.textContent=st.err; const avg=st.rts.length?Math.round(st.rts.reduce((a,b)=>a+b,0)/st.rts.length):null; if(avg) el.avg.textContent=avg+' ms';
+  setTimeout(trial,500);
+}
+
+el.start.addEventListener('click',()=>{st.total=parseInt(el.rounds.value)||12;st.n=0;st.ok=0;st.err=0;st.miss=0;st.rts=[];trial();});
+window.addEventListener('keydown',(e)=>{if(e.code==='ArrowLeft')press('L');if(e.code==='ArrowRight')press('R');});
+</script>
+</body>
+</html>

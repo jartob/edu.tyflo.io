@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 30 – Pamięć operacyjna (1‑back: cyfry)</title>
+<style>
+:root{--accent:#00E0FF; --gap:10px; --rad:14px}
+*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent)}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:.95rem;color:#bbb;margin:4px 0 0}
+.display{display:flex;align-items:center;justify-content:center;border:2px dashed var(--accent);border-radius:var(--rad);min-height:110px;margin-top:10px;font-size:3rem;gap:16px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.btn{padding:10px 12px;border:2px solid var(--accent);border-radius:12px;background:#000;color:#fff;font-weight:800}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+</style>
+</head>
+<body>
+<main class="wrap">
+<h1>🧠 Zajęcia 30 – Pamięć operacyjna (1‑back: cyfry)</h1>
+<section class="panel">
+  <div class="controls">
+    <div><label for="len">Liczba bodźców</label><select id="len"><option>12</option><option selected>16</option><option>24</option></select></div>
+    <div><label for="ttsSel">Lektor</label><select id="ttsSel"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="primary" id="goal30">🔊 Odczytaj cel</button><button class="primary" id="start30">START</button></div>
+  </div>
+  <p class="small">Oceń, czy <b>aktualna cyfra</b> jest taka sama jak <b>poprzednia</b>. TAK / NIE. Czekam na Twoją odpowiedź – bez auto‑timeoutu.</p>
+</section>
+<section class="panel">
+  <div id="display30" class="display" aria-live="polite">—</div>
+  <div class="actions"><button class="btn" id="yes30">✅ TAK</button><button class="btn" id="no30">✖ NIE</button></div>
+  <div class="stats">
+    <div class="stat"><b>Pozycja:</b> <span id="pos30">0</span>/<span id="total30">0</span></div>
+    <div class="stat"><b>Poprawne:</b> <span id="ok30">0</span></div>
+    <div class="stat"><b>Błędy:</b> <span id="err30">0</span></div>
+    <div class="stat"><b>Śr. czas reakcji:</b> <span id="rt30">–</span></div>
+  </div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s); let voice=true;
+$('#ttsSel').addEventListener('change',e=>{voice=e.target.value==='on'; if(!voice&&'speechSynthesis'in window) try{speechSynthesis.cancel();}catch(_){}});
+function say(t){ if(!voice||!('speechSynthesis'in window))return; try{speechSynthesis.cancel();}catch(_){}
+ const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u); }
+$('#goal30').addEventListener('click',()=>say('Zapamiętuj poprzednią cyfrę i oceń, czy aktualna jest taka sama.'));
+let seq30=[],i30=0,total30=0,ok30=0,err30=0,awaiting30=false,tShow30=0,rts30=[],last30=null;
+function gen30(n){const o=[];for(let k=0;k<n;k++)o.push(Math.floor(Math.random()*9)+1);return o;}
+function show30(){ if(i30>=total30){ finish30(); return; } const v=seq30[i30]; $('#display30').textContent=String(v); $('#pos30').textContent=String(i30+1); awaiting30=true; tShow30=performance.now(); }
+function update30(){ $('#ok30').textContent=String(ok30); $('#err30').textContent=String(err30); const times=rts30.filter(v=>Number.isFinite(v)); $('#rt30').textContent=times.length?Math.round(times.reduce((a,b)=>a+b,0)/times.length)+' ms':'–'; }
+function answer30(isYes){ if(!awaiting30) return; const curr=seq30[i30]; const rt=Math.round(performance.now()-tShow30); const same=(last30!==null && curr===last30);
+ if(isYes===same){ ok30++; say('dobrze'); } else { err30++; say('spróbuj ponownie'); } rts30.push(rt); awaiting30=false; last30=curr; i30++; update30(); setTimeout(show30,150); }
+$('#yes30').addEventListener('click',()=>answer30(true)); $('#no30').addEventListener('click',()=>answer30(false));
+document.addEventListener('keydown',e=>{const k=e.key.toLowerCase(); if(k==='j') answer30(true); else if(k==='f') answer30(false);});
+$('#start30').addEventListener('click',()=>{ total30=Number($('#len').value); seq30=gen30(total30); i30=0; ok30=0; err30=0; rts30=[]; awaiting30=false; last30=null;
+ $('#total30').textContent=String(total30); $('#pos30').textContent='0'; $('#ok30').textContent='0'; $('#err30').textContent='0'; $('#rt30').textContent='–';
+ say('Zaczynamy. Oceń, czy liczba powtarza się po poprzedniej.'); setTimeout(show30,300); });
+function finish30(){ $('#display30').textContent='Koniec'; say('Koniec. Dobra robota.'); }
+</script>
+</body>
+</html>

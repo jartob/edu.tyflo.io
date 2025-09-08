@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 26 – Przerzutność uwagi (ręczne przejście, F/J)</title>
+<style>
+:root{--accent:#00E0FF; --gap:10px; --rad:14px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1000px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent)}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:.95rem;color:#bbb;margin:4px 0 0}
+.display{display:flex;align-items:center;justify-content:center;border:2px dashed var(--accent);border-radius:var(--rad);min-height:120px;margin-top:10px;font-size:3rem;gap:16px}
+.badge{padding:6px 10px;border-radius:10px;border:1px solid #333;background:#0b0b0b;color:#ddd;font-weight:700}
+.rule{font-size:1.05rem}
+.num{width:108px;height:108px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-weight:900;border:4px solid #555;background:#000}
+.num.blue{border-color:#00E0FF}
+.num.orange{border-color:#FFA500}
+.actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+kbd{background:#111;border:1px solid #444;border-bottom-width:3px;border-radius:6px;padding:2px 6px;font-weight:800}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>🔁 Zajęcia 26 – Przerzutność uwagi</h1>
+  <section class="panel">
+    <div class="controls">
+      <div>
+        <label for="len">Liczba prób</label>
+        <select id="len">
+          <option>12</option>
+          <option selected>20</option>
+          <option>30</option>
+        </select>
+      </div>
+      <div>
+        <label for="ttsSel">Lektor</label>
+        <select id="ttsSel">
+          <option value="on" selected>Włączony</option>
+          <option value="off">Wyłączony</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="primary" id="goal">🔊 Odczytaj cel</button>
+        <button class="primary" id="start">START</button>
+      </div>
+    </div>
+    <p class="small">Zasady: <span class="badge">NIEBIESKA ramka</span> – oceń <b>parzystość</b> (parzysta? <kbd>J</kbd> = TAK, <kbd>F</kbd> = NIE). <span class="badge">POMARAŃCZOWA ramka</span> – oceń, czy liczba jest <b>&gt; 5</b> (tak <kbd>J</kbd>, nie <kbd>F</kbd>). Przejście do następnej próby następuje <b>dopiero po odpowiedzi</b>.</p>
+  </section>
+
+  <section class="panel">
+    <div id="display" class="display" aria-live="polite">
+      <div id="rule" class="rule">—</div>
+      <div id="num" class="num">—</div>
+    </div>
+    <div class="actions">
+      <button id="yes">✅ TAK <small>(<kbd>J</kbd>)</small></button>
+      <button id="no">✖ NIE <small>(<kbd>F</kbd>)</small></button>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>Próba:</b> <span id="pos">0</span>/<span id="total">0</span></div>
+      <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+      <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+      <div class="stat"><b>Śr. czas reakcji:</b> <span id="rt">–</span></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let voice = true;
+$('#ttsSel').addEventListener('change', e => {
+  voice = e.target.value === 'on';
+  if(!voice && 'speechSynthesis' in window) try{ speechSynthesis.cancel(); } catch(_) {}
+});
+function say(t){
+  if(!voice || !('speechSynthesis' in window)) return;
+  try{ speechSynthesis.cancel(); } catch(_) {}
+  const u = new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);
+}
+$('#goal').addEventListener('click', ()=> say('Celem jest ćwiczenie przerzutności uwagi. Niebieska ramka: parzystość – odpowiadaj J dla tak, F dla nie. Pomarańczowa ramka: czy liczba jest większa od pięciu – J dla tak, F dla nie.'));
+
+const RULES = [
+  {key:'blue',  label:'PARZYSTA?', color:'#00E0FF'},
+  {key:'orange',label:'CZY > 5?', color:'#FFA500'}
+];
+
+let seq = []; // {rule:'blue'|'orange', num:1..9}
+let idx = 0;
+let ok = 0, err = 0;
+let total = 0;
+let awaiting = false;
+let tShow = 0;
+let rts = [];
+
+function gen(){
+  const n = Number($('#len').value);
+  const out = [];
+  for(let i=0;i<n;i++){
+    const rule = Math.random()<0.5 ? 'blue' : 'orange';
+    const num = 1 + Math.floor(Math.random()*9);
+    out.push({rule, num});
+  }
+  return out;
+}
+
+function correctAnswer(stim){
+  if(stim.rule==='blue'){
+    return (stim.num % 2 === 0); // parzysta -> TAK (J)
+  } else {
+    return (stim.num > 5); // >5 -> TAK (J)
+  }
+}
+
+function show(){
+  if(idx>=total){ finish(); return; }
+  const stim = seq[idx];
+  const rule = RULES.find(r=>r.key===stim.rule);
+  $('#rule').textContent = rule.label;
+  const numEl = $('#num');
+  numEl.textContent = String(stim.num);
+  numEl.classList.remove('blue','orange');
+  numEl.classList.add(stim.rule);
+  numEl.style.borderColor = rule.color;
+  $('#pos').textContent = String(idx+1);
+  awaiting = true;
+  tShow = performance.now();
+}
+
+function updateStats(){
+  $('#ok').textContent = String(ok);
+  $('#err').textContent = String(err);
+  const times = rts.filter(v=>Number.isFinite(v));
+  $('#rt').textContent = times.length ? Math.round(times.reduce((a,b)=>a+b,0)/times.length)+' ms' : '–';
+}
+
+function next(){
+  idx++;
+  show();
+}
+
+function answer(isYes){
+  if(!awaiting) return;
+  const rt = Math.round(performance.now()-tShow);
+  const stim = seq[idx];
+  const corr = correctAnswer(stim);
+  if(isYes === corr){ ok++; say('dobrze'); } else { err++; say('spróbuj ponownie'); }
+  rts.push(rt);
+  awaiting=false;
+  updateStats();
+  setTimeout(next, 150);
+}
+
+document.getElementById('start').addEventListener('click', ()=>{
+  seq = gen();
+  total = seq.length;
+  idx=0; ok=0; err=0; rts=[]; awaiting=false;
+  $('#total').textContent = String(total);
+  $('#pos').textContent = '0'; $('#ok').textContent='0'; $('#err').textContent='0'; $('#rt').textContent='–';
+  $('#num').textContent='—'; $('#rule').textContent='—';
+  say('Zaczynamy. Skup się na regułach.');
+  setTimeout(show, 300);
+});
+
+document.getElementById('yes').addEventListener('click', ()=>answer(true));
+document.getElementById('no').addEventListener('click', ()=>answer(false));
+
+// Klawisze: J = TAK, F = NIE
+document.addEventListener('keydown', (e)=>{
+  const k = e.key.toLowerCase();
+  if(k==='j'){ answer(true); }
+  else if(k==='f'){ answer(false); }
+});
+
+function finish(){
+  $('#num').textContent='Koniec';
+  $('#rule').textContent='—';
+  say('Koniec. Bardzo ładnie.');
+}
+</script>
+</body>
+</html>

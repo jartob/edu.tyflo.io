@@ -1,0 +1,154 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 07 – Śledzenie bodźca (cursor tracking)</title>
+<style>:root{--scale:1.0;--accent:#FF7043}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff;font-size:calc(18px*var(--scale))}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}
+h1{margin:0 0 8px;font-size:calc(2rem*var(--scale));font-weight:800}
+.panel{border:2px solid var(--accent);border-radius:16px;background:#0e0e0e;padding:16px;margin:12px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+input,select,button{width:100%;padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px}
+button.primary{background:var(--accent);color:#000;font-weight:800;cursor:pointer}
+.canvasWrap{position:relative}
+canvas{width:100%;height:60vh;background:#0b0b0b;border:3px dashed var(--accent);border-radius:16px}
+.badge{position:absolute;top:10px;left:10px;background:#000a;border:1px solid #444;padding:8px 10px;border-radius:10px;color:#eee;font-size:0.95rem}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:8px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:10px;color:#ddd}
+.note{color:#ffccbc}
+</style></head><body>
+<main class="wrap">
+  <h1>🎯 Zajęcia 07 – Śledzenie bodźca</h1>
+  <section class="panel">
+    <div class="controls">
+      <div><label>Tryb ruchu</label>
+        <select id="mode">
+          <option value="bounce" selected>Odbijanie (linearne)</option>
+          <option value="circle">Ruch po okręgu</option>
+          <option value="random">Losowy (błądzenie)</option>
+        </select>
+      </div>
+      <div><label>Prędkość</label><input id="speed" type="range" min="1" max="10" value="4"/></div>
+      <div><label>Rozmiar bodźca (px)</label><input id="size" type="number" min="10" max="80" value="26"/></div>
+      <div><label>Kontrast</label>
+        <select id="contrast">
+          <option value="high" selected>Wysoki</option>
+          <option value="mid">Średni</option>
+          <option value="low">Niski</option>
+        </select>
+      </div>
+      <div><label>Ślad</label>
+        <select id="trail">
+          <option value="off" selected>Wyłączony</option>
+          <option value="on">Włączony</option>
+        </select>
+      </div>
+      <div><label>Lektor</label>
+        <select id="tts">
+          <option value="off" selected>Wyłączony</option>
+          <option value="on">Włączony</option>
+        </select>
+      </div>
+      <div style="align-self:end;display:flex;gap:8px">
+        <button id="start" class="primary">START</button>
+        <button id="stop">STOP</button>
+        <button id="reset">RESET</button>
+      </div>
+    </div>
+    <p class="note">Zadanie: podążaj kursorem za bodźcem. Mierzona jest <b>średnia odległość</b> kursora od bodźca oraz <b>czas</b>. Im mniejsza odległość, tym lepiej.</p>
+    <div class="canvasWrap">
+      <canvas id="cv" aria-label="Pole ćwiczenia śledzenia bodźca"></canvas>
+      <div class="badge">
+        <div><b>Czas:</b> <span id="t">0.0 s</span></div>
+        <div><b>Śr. dystans:</b> <span id="d">0.0 px</span></div>
+        <div><b>Maks. dystans:</b> <span id="dmax">0 px</span></div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>Kontakt (&lt; 40 px):</b> <span id="hit">0%</span></div>
+      <div class="stat"><b>Kontakt (&lt; 80 px):</b> <span id="near">0%</span></div>
+      <div class="stat"><b>Klatki:</b> <span id="frames">0</span></div>
+    </div>
+  </section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+let voice=false; 
+$('#tts').addEventListener('change',e=>{voice=(e.target.value==='on'); if(!voice && 'speechSynthesis' in window) try{ speechSynthesis.cancel(); }catch(_){}});
+function say(txt){ if(!voice || !('speechSynthesis' in window)) return; try{ const u=new SpeechSynthesisUtterance(txt); u.lang='pl-PL'; u.rate=0.98; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(_){ } }
+
+const cv=$('#cv'); const ctx=cv.getContext('2d'); let W=0,H=0;
+function resize(){ const r=cv.getBoundingClientRect(); W=cv.width=r.width*2; H=cv.height=r.height*2; ctx.setTransform(1,0,0,1,0,0); ctx.scale(2,2); }
+window.addEventListener('resize', resize); resize();
+
+let st={running:false, t0:0, frames:0, sumDist:0, maxDist:0, near40:0, near80:0, cursor:{x:-999,y:-999}, pos:{x:150,y:120}, v:{x:2,y:1.5}, ang:0};
+function colorByContrast(){
+  const c=$('#contrast').value;
+  if(c==='high') return {bg:'#0b0b0b', dot:'#FF7043', trail:'rgba(255,112,67,0.15)'};
+  if(c==='mid') return {bg:'#111', dot:'#FFD54F', trail:'rgba(255,213,79,0.12)'};
+  return {bg:'#151515', dot:'#BDBDBD', trail:'rgba(189,189,189,0.10)'};
+}
+
+function resetStats(){ st.frames=0; st.sumDist=0; st.maxDist=0; st.near40=0; st.near80=0; $('#t').textContent='0.0 s'; $('#d').textContent='0.0 px'; $('#dmax').textContent='0 px'; $('#hit').textContent='0%'; $('#near').textContent='0%'; $('#frames').textContent='0'; }
+
+function start(){ st.running=true; st.t0=performance.now(); resetStats(); say('Start ćwiczenia'); animate(); }
+function stop(){ st.running=false; say('Stop'); }
+function reset(){ stop(); st.pos={x:150,y:120}; st.v={x:2,y:1.5}; st.ang=0; st.cursor={x:-999,y:-999}; resetStats(); draw(true); }
+
+function update(){
+  const mode=$('#mode').value; const sp=(parseInt($('#speed').value)||4)/2; const R=parseInt($('#size').value)||26;
+  if(mode==='bounce'){
+    st.pos.x+=st.v.x*sp; st.pos.y+=st.v.y*sp;
+    if(st.pos.x<R || st.pos.x>cv.width/2-R) st.v.x*=-1;
+    if(st.pos.y<R || st.pos.y>cv.height/2-R) st.v.y*=-1;
+  }else if(mode==='circle'){
+    st.ang += 0.02*sp;
+    const cx=cv.width/4, cy=cv.height/4, rad=Math.min(cv.width,cv.height)/6;
+    st.pos.x = cx + rad*Math.cos(st.ang);
+    st.pos.y = cy + rad*Math.sin(st.ang);
+  }else{
+    // random walk
+    st.v.x += (Math.random()-0.5)*0.3*sp; st.v.y += (Math.random()-0.5)*0.3*sp;
+    st.v.x = Math.max(-3, Math.min(3, st.v.x)); st.v.y = Math.max(-3, Math.min(3, st.v.y));
+    st.pos.x+=st.v.x*sp; st.pos.y+=st.v.y*sp;
+    const R2=R; if(st.pos.x<R2||st.pos.x>cv.width/2-R2) st.v.x*=-1; if(st.pos.y<R2||st.pos.y>cv.height/2-R2) st.v.y*=-1;
+  }
+}
+
+function draw(clear){
+  const C=colorByContrast(); const R=parseInt($('#size').value)||26; const trailOn=$('#trail').value==='on';
+  if(clear){ ctx.fillStyle=C.bg; ctx.fillRect(0,0,cv.width,cv.height); }
+  if(trailOn){ ctx.fillStyle=C.trail; ctx.beginPath(); ctx.arc(st.pos.x, st.pos.y, R+6, 0, Math.PI*2); ctx.fill(); }
+  else { ctx.fillStyle=C.bg; ctx.fillRect(0,0,cv.width,cv.height); }
+  // draw dot
+  ctx.beginPath(); ctx.fillStyle=C.dot; ctx.arc(st.pos.x, st.pos.y, R, 0, Math.PI*2); ctx.fill();
+  // draw cursor marker (for uczniowie)
+  if(st.cursor.x>-900){
+    ctx.beginPath(); ctx.strokeStyle='#90CAF9'; ctx.lineWidth=2; ctx.arc(st.cursor.x, st.cursor.y, 8, 0, Math.PI*2); ctx.stroke();
+  }
+}
+
+function animate(now){
+  if(!st.running) return;
+  update();
+  // metrics
+  const dx=st.cursor.x-st.pos.x, dy=st.cursor.y-st.pos.y; const dist=Math.sqrt(dx*dx+dy*dy);
+  if(!isNaN(dist)){ st.sumDist+=dist; st.maxDist=Math.max(st.maxDist, dist); st.frames++; if(dist<40) st.near40++; if(dist<80) st.near80++; }
+  const t=(performance.now()-st.t0)/1000;
+  $('#t').textContent=t.toFixed(1)+' s';
+  $('#d').textContent=(st.sumDist/Math.max(1,st.frames)).toFixed(1)+' px';
+  $('#dmax').textContent=Math.round(st.maxDist)+' px';
+  $('#frames').textContent=st.frames;
+  $('#hit').textContent=(100*st.near40/Math.max(1,st.frames)).toFixed(0)+'%';
+  $('#near').textContent=(100*st.near80/Math.max(1,st.frames)).toFixed(0)+'%';
+  draw(false);
+  requestAnimationFrame(animate);
+}
+
+cv.addEventListener('mousemove',e=>{ const r=cv.getBoundingClientRect(); st.cursor.x=(e.clientX-r.left)*2; st.cursor.y=(e.clientY-r.top)*2; });
+window.addEventListener('resize', ()=>{ resize(); draw(true); });
+
+$('#start').addEventListener('click', start);
+$('#stop').addEventListener('click', stop);
+$('#reset').addEventListener('click', reset);
+
+// init
+resize(); reset(); draw(true);
+</script></body></html>

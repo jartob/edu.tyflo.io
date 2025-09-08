@@ -1,0 +1,117 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 11 – Sekwencje kolorów (Simon) – z lektorem</title>
+<style>
+:root{--accent:#42A5F5}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1000px;margin:0 auto;padding:20px}
+h1{margin:0 0 8px;font-size:1.9rem}
+.panel{border:2px solid var(--accent);border-radius:16px;background:#0e0e0e;padding:16px;margin:12px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+input,select,button{padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px}
+button.primary{background:var(--accent);color:#000;font-weight:800;cursor:pointer}
+.board{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:520px;margin:14px auto}
+.pad{aspect-ratio:1/1;border-radius:16px;border:3px solid var(--accent);cursor:pointer;position:relative;overflow:hidden;outline:none}
+.pad:focus{box-shadow:0 0 0 4px #90CAF9}
+.pad .label{position:absolute;bottom:8px;right:10px;background:#000a;padding:4px 8px;border-radius:8px;font-weight:800}
+.pad.r{background:#C62828}.pad.g{background:#2E7D32}.pad.b{background:#1565C0}.pad.y{background:#F9A825;color:#000}
+.pad.dim{filter:brightness(0.55)}.pad.flash{filter:brightness(1.35);box-shadow:0 0 0 4px #fff inset}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:10px;color:#ddd}
+.note{color:#bbdefb}
+.keys{display:grid;grid-template-columns:repeat(2,120px);gap:8px;justify-content:center;margin-top:8px}
+.k{border:2px solid var(--accent);border-radius:10px;background:#000;color:#fff;padding:10px;font-weight:900}
+</style></head><body>
+<main class="wrap">
+  <h1>🎶 Zajęcia 11 – Sekwencje kolorów (Simon) – z lektorem</h1>
+  <section class="panel">
+    <div class="controls">
+      <div><label>Długość sekwencji</label><input id="len" type="number" min="3" max="12" value="5"/></div>
+      <div><label>Rundy</label><input id="rounds" type="number" min="3" max="30" value="8"/></div>
+      <div><label>Tempo (ms na błysk)</label><input id="tempo" type="number" min="200" max="1500" step="50" value="650"/></div>
+      <div><label>Lektor</label><select id="tts"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+      <div style="align-self:end"><button id="start" class="primary">START</button></div>
+    </div>
+    <p class="note">Zadanie: zapamiętaj sekwencję błysków i **odtwórz ją**. Lektor podaje „Twoja kolej”, a po każdym kliknięciu mówi „dobrze” lub „błąd”.</p>
+    <div class="board" id="board" aria-label="Plansza 2×2 – kolorowe pola">
+      <button class="pad r dim" id="R" aria-label="czerwony"><span class="label">R</span></button>
+      <button class="pad g dim" id="G" aria-label="zielony"><span class="label">G</span></button>
+      <button class="pad b dim" id="B" aria-label="niebieski"><span class="label">B</span></button>
+      <button class="pad y dim" id="Y" aria-label="żółty"><span class="label">Y</span></button>
+    </div>
+    <div class="keys">
+      <button class="k" data-k="R">R</button><button class="k" data-k="G">G</button>
+      <button class="k" data-k="B">B</button><button class="k" data-k="Y">Y</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>Runda:</b> <span id="n">0 / 0</span></div>
+      <div class="stat"><b>OK rundy:</b> <span id="ok">0</span></div>
+      <div class="stat"><b>Błędy rund:</b> <span id="err">0</span></div>
+    </div>
+  </section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+let voiceOn=true; $('#tts').addEventListener('change',e=>{voiceOn=e.target.value==='on'; if(!voiceOn&&'speechSynthesis'in window) try{speechSynthesis.cancel();}catch(_){}});
+function say(t){ if(!voiceOn||!('speechSynthesis'in window))return; try{ const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; u.rate=0.98; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(_){ } }
+
+const PADS=['R','G','B','Y'];
+const names={R:'czerwony', G:'zielony', B:'niebieski', Y:'żółty'};
+
+const el={start:$('#start'), len:$('#len'), rounds:$('#rounds'), tempo:$('#tempo')};
+let st={total:8,i:0,seq:[],input:[],phase:'idle'};
+
+function flash(id, dur){
+  const pad=document.getElementById(id);
+  pad.classList.add('flash'); pad.classList.remove('dim');
+  setTimeout(()=>{ pad.classList.remove('flash'); pad.classList.add('dim'); }, dur*0.8);
+}
+
+async function showSeq(){
+  st.phase='show';
+  const t=parseInt(el.tempo.value)||650;
+  for(const p of st.seq){ flash(p, t); say(names[p]); await new Promise(r=>setTimeout(r,t)); }
+  st.phase='input'; st.input=[]; say('Twoja kolej');
+}
+
+function nextRound(){
+  st.i++; $('#n').textContent=`${Math.min(st.i,st.total)} / ${st.total}`;
+  if(st.i>st.total){ st.phase='idle'; say('Koniec ćwiczenia. Świetna robota.'); return; }
+  const L=parseInt(el.len.value)||5;
+  st.seq=[]; for(let i=0;i<L;i++){ st.seq.push(PADS[Math.floor(Math.random()*PADS.length)]); }
+  showSeq();
+}
+
+function press(id){
+  if(st.phase!=='input') return;
+  st.input.push(id); flash(id, 200);
+  const pos=st.input.length-1;
+  if(st.seq[pos]===id){
+    say('dobrze');
+    if(st.input.length===st.seq.length){
+      $('#ok').textContent=String(parseInt($('#ok').textContent||'0')+1);
+      say('runda zaliczona');
+      setTimeout(nextRound, 500);
+      st.phase='next';
+    }
+  }else{
+    $('#err').textContent=String(parseInt($('#err').textContent||'0')+1);
+    say('błąd'); setTimeout(nextRound, 600); st.phase='next';
+  }
+}
+
+document.querySelectorAll('.pad').forEach(p=>p.addEventListener('click',()=>press(p.id)));
+document.querySelectorAll('.k').forEach(b=>b.addEventListener('click',()=>press(b.dataset.k)));
+window.addEventListener('keydown',e=>{
+  const k=e.key.toUpperCase(); if(['R','G','B','Y'].includes(k)) press(k);
+});
+
+function start(){
+  st.total=Math.max(3, Math.min(30, parseInt(el.rounds.value)||8));
+  st.i=0; st.seq=[]; st.input=[]; ['ok','err'].forEach(id=>document.getElementById(id).textContent='0');
+  say('Start. Zapamiętaj sekwencję'); nextRound();
+}
+
+el.start.addEventListener('click', start);
+</script></body></html>

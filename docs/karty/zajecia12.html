@@ -1,0 +1,124 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 12 – Pamięć wzrokowo‑przestrzenna (z lektorem)</title>
+<style>
+:root{--accent:#8D6E63}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}
+h1{margin:0 0 8px;font-size:1.9rem}
+.panel{border:2px solid var(--accent);border-radius:16px;background:#0e0e0e;padding:16px;margin:12px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+input,select,button{padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px}
+button.primary{background:var(--accent);color:#000;font-weight:800;cursor:pointer}
+.board{display:grid;gap:10px;border:3px dashed var(--accent);border-radius:16px;padding:12px;margin-top:10px}
+.cell{display:flex;align-items:center;justify-content:center;border:2px solid var(--accent);border-radius:12px;background:#000;aspect-ratio:1/1;font-size:1.4rem;font-weight:900;cursor:pointer}
+.cell.mark{background:#4E342E}
+.cell.cue{background:#D7CCC8;color:#000}
+.cell.good{box-shadow:0 0 0 3px #59ff9a inset}
+.cell.bad{box-shadow:0 0 0 3px #ff5959 inset}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:10px;color:#ddd}
+.note{color:#d7ccc8}
+</style></head><body>
+<main class="wrap">
+  <h1>🧩 Zajęcia 12 – Pamięć wzrokowo‑przestrzenna (zapamiętaj i odtwórz) – z lektorem</h1>
+  <section class="panel">
+    <div class="controls">
+      <div><label>Rozmiar siatki</label>
+        <select id="size">
+          <option>3</option>
+          <option selected>4</option>
+          <option>5</option>
+          <option>6</option>
+        </select>
+      </div>
+      <div><label>Długość sekwencji</label><input id="len" type="number" min="2" max="12" value="4"/></div>
+      <div><label>Rundy</label><input id="rounds" type="number" min="3" max="30" value="8"/></div>
+      <div><label>Czas podpowiedzi (ms)</label><input id="show" type="number" min="250" max="2500" step="50" value="700"/></div>
+      <div><label>Przerwa (ms)</label><input id="isi" type="number" min="150" max="2000" step="50" value="250"/></div>
+      <div><label>Lektor</label><select id="tts"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+      <div style="align-self:end"><button id="start" class="primary">START</button></div>
+    </div>
+    <p class="note">Zadanie: zobaczysz <b>kolejno podświetlane pola</b>. Zapamiętaj je i kliknij w tej samej kolejności. Lektor mówi „Twoja kolej”, „dobrze”, „błąd”.</p>
+    <div id="board" class="board" aria-label="Siatka pól do zapamiętania"></div>
+    <div class="stats">
+      <div class="stat"><b>Runda:</b> <span id="n">0 / 0</span></div>
+      <div class="stat"><b>Poprawne rundy:</b> <span id="ok">0</span></div>
+      <div class="stat"><b>Błędy rund:</b> <span id="err">0</span></div>
+    </div>
+  </section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+let voiceOn=true; $('#tts').addEventListener('change',e=>{voiceOn=e.target.value==='on'; if(!voiceOn&&'speechSynthesis'in window) try{speechSynthesis.cancel();}catch(_){}});
+function say(t){ if(!voiceOn||!('speechSynthesis'in window))return; try{ const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; u.rate=0.98; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(_){ } }
+
+const el={board:$('#board'), size:$('#size'), len:$('#len'), rounds:$('#rounds'), show:$('#show'), isi:$('#isi')};
+let st={N:4,total:8,i:0,seq:[],input:[],phase:'idle'};
+
+function buildBoard(){
+  const N=parseInt(el.size.value)||4; st.N=N;
+  el.board.style.gridTemplateColumns=`repeat(${N},1fr)`; el.board.innerHTML='';
+  for(let i=0;i<N*N;i++){
+    const b=document.createElement('button'); b.className='cell'; b.dataset.idx=i;
+    b.addEventListener('click',()=>press(i,b));
+    el.board.appendChild(b);
+  }
+}
+
+function flash(idx, on=true){
+  const b=el.board.children[idx];
+  if(!b) return;
+  b.classList.toggle('cue', on);
+  if(on){ setTimeout(()=>flash(idx,false), parseInt(el.show.value)||700); }
+}
+
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+async function showSeq(){
+  st.phase='show';
+  const total = st.N*st.N;
+  const L = Math.max(2, Math.min(total, parseInt(el.len.value)||4));
+  // wylosuj L unikalnych indeksów, ale utrzymaj kolejność prezentacji losową
+  const pool = shuffle([...Array(total).keys()]).slice(0, L);
+  st.seq = pool; st.input = [];
+  for(const i of st.seq){
+    flash(i, true);
+    await new Promise(r=>setTimeout(r, (parseInt(el.show.value)||700) + (parseInt(el.isi.value)||250)));
+  }
+  st.phase='input'; say('Twoja kolej');
+}
+
+function nextRound(){
+  st.i++; $('#n').textContent=`${Math.min(st.i,st.total)} / ${st.total}`;
+  if(st.i>st.total){ st.phase='idle'; say('Koniec ćwiczenia. Świetna robota.'); return; }
+  buildBoard();
+  showSeq();
+}
+
+function press(idx, btn){
+  if(st.phase!=='input') return;
+  const k = st.input.length;
+  const ok = (st.seq[k]===idx);
+  st.input.push(idx);
+  btn.classList.add(ok?'good':'bad');
+  say(ok?'dobrze':'błąd');
+  if(!ok){ inc('err'); setTimeout(nextRound, 600); st.phase='next'; return; }
+  if(st.input.length===st.seq.length){
+    inc('ok'); say('runda zaliczona'); setTimeout(nextRound, 600); st.phase='next';
+  }
+}
+
+function inc(id){ const s=document.getElementById(id); s.textContent=String(parseInt(s.textContent||'0')+1); }
+
+function start(){
+  st.total=Math.max(3, Math.min(30, parseInt(el.rounds.value)||8));
+  st.i=0; ['ok','err'].forEach(id=>document.getElementById(id).textContent='0');
+  say('Start. Zapamiętaj kolejność pól'); nextRound();
+}
+
+document.getElementById('start').addEventListener('click', start);
+// Init
+buildBoard();
+</script></body></html>

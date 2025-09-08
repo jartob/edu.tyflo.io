@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zajęcia 4 – Pamięć wzrokowo-przestrzenna</title>
+<style>
+  :root { --scale: 1.0; --accent:#FF6AD5; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#000; color:#fff; font-size:calc(18px * var(--scale)); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: calc(2rem * var(--scale)); margin: 0 0 8px; }
+  .note { font-size: calc(1rem * var(--scale)); color:#ffd5f6; }
+  .controls { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
+  label { display:block; margin-bottom:6px; }
+  input[type="number"], input[type="range"], select, button { width:100%; padding:12px 14px; font-size:calc(1rem * var(--scale)); background:#000; color:#fff; border:2px solid var(--accent); border-radius:12px; }
+  button.primary { background:var(--accent); color:#000; border-color:var(--accent); font-weight:800; cursor:pointer; }
+  .panel { border:2px solid var(--accent); border-radius:16px; background:#0e0e0e; padding:16px; margin-bottom:14px; }
+  .display { border:3px dashed var(--accent); border-radius:16px; min-height: 28vh; display:flex; align-items:center; justify-content:center; text-align:center; padding:16px; position:relative; gap:12px; flex-wrap:wrap; }
+  .grid { display:grid; gap:10px; margin-top:12px; }
+  .cell { display:flex; align-items:center; justify-content:center; border:2px solid var(--accent); border-radius:12px; padding:18px; cursor:pointer; background:#000; color:#fff; font-weight:900; font-size:calc(2rem * var(--scale)); min-height:90px; }
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:10px; margin-top:12px; }
+  .stat { background:#0a0a0a; border:1px solid #333; border-radius:12px; padding:10px; color:#ddd; }
+</style>
+</head>
+<body>
+  <main class="wrap">
+
+<h1>🧩 Zajęcia 4 – Pamięć wzrokowo‑przestrzenna</h1>
+<p class="note">Zapamiętaj <b>podświetlone pola</b>, a następnie je odtwórz. Gra rozwija pamięć wzrokowo‑przestrzenną i koncentrację.</p>
+<section class="panel">
+  <div class="controls">
+    <div><label>Wielkość: <span id="fontVal">100%</span></label><input id="fontsize" type="range" min="80" max="180" step="5" value="100" /></div>
+    <div><label>Kontrast</label><select id="theme"><option value="dark">Ciemny</option><option value="light">Jasny</option></select></div>
+    <div><label>Lektor</label><select id="tts"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+    <div><label>Rozmiar siatki</label><select id="size"><option>3</option><option selected>4</option><option>5</option></select></div>
+    <div><label>Długość sekwencji</label><input id="seq" type="number" min="2" max="10" value="3" /></div>
+    <div><label>Liczba rund</label><input id="rounds" type="number" min="5" max="30" value="10" /></div>
+    <div style="align-self:end"><button id="start" class="primary">START</button></div>
+  </div>
+  <div class="grid" id="grid" style="grid-template-columns: repeat(4, 1fr);"></div>
+  <div class="stats">
+    <div class="stat"><b>Runda:</b> <span id="n">0 / 0</span></div>
+    <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+    <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+  </div>
+</section>
+</main>
+<script>
+const el={ rounds:$('#rounds'), size:$('#size'), seq:$('#seq'), start:$('#start'), grid:$('#grid'), n:$('#n'), ok:$('#ok'), err:$('#err') };
+const st={ total:10, n:0, ok:0, err:0, seq:[], input:[], size:4, lock:false };
+function build(size){ el.grid.style.gridTemplateColumns=`repeat(${size},1fr)`; el.grid.innerHTML=''; for(let i=0;i<size*size;i++){ const b=document.createElement('button'); b.className='cell'; b.textContent=i+1; b.addEventListener('click',()=>press(i)); el.grid.appendChild(b); } }
+function start(){ ensureAudio(); st.total=parseInt(el.rounds.value)||10; st.n=0; st.ok=0; st.err=0; next(); }
+function flashCell(idx,color,dur=500){ const c=el.grid.children[idx]; if(!c) return; const old=c.style.background; c.style.background=color; setTimeout(()=>c.style.background=old||'#000',dur); }
+function next(){ st.n++; if(st.n>st.total){ speak('Koniec'); return; } el.n.textContent=`${st.n} / ${st.total}`; st.size=parseInt(el.size.value)||4; build(st.size); const L=parseInt(el.seq.value)||3; st.seq=[]; for(let i=0;i<L;i++) st.seq.push(Math.floor(Math.random()*st.size*st.size)); st.lock=true; let t=0; st.seq.forEach((idx,j)=>{ setTimeout(()=>{ flashCell(idx,'#FF6AD5'); beep(700+80*j,180); },t); t+=700; }); setTimeout(()=>{ st.lock=false; st.input=[]; speak('Odtwórz sekwencję'); },t+400); }
+function press(i){ if(st.lock) return; st.input.push(i); flashCell(i,'#59ff9a',200); if(st.input.length===st.seq.length){ check(); } }
+function check(){ const good=st.input.every((v,i)=>v===st.seq[i]); if(good){ st.ok++; flash(el.grid,'#59ff9a'); beep(950,200); } else { st.err++; flash(el.grid,'#ff5959'); beep(300,200); } el.ok.textContent=st.ok; el.err.textContent=st.err; setTimeout(next,1000); }
+el.start.addEventListener('click',start);
+</script>
+
+  </main>
+<script>
+const font = document.getElementById('fontsize');
+const fontVal = document.getElementById('fontVal');
+if (font) font.addEventListener('input', ()=>{ const v=parseInt(font.value,10); fontVal.textContent=v+'%'; document.documentElement.style.setProperty('--scale', (v/100)); });
+const theme = document.getElementById('theme');
+if (theme) theme.addEventListener('change', (e)=>{
+  const v=e.target.value;
+  document.body.style.background = v==='light' ? '#fff' : '#000';
+  document.body.style.color = v==='light' ? '#000' : '#fff';
+  document.querySelectorAll('.panel,.choice,input,select,button,.display,.cell').forEach(el=>{
+    el.style.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--accent');
+  });
+});
+let voiceOn = true;
+const ttsSel = document.getElementById('tts');
+if (ttsSel) ttsSel.addEventListener('change', (e)=>{ voiceOn = e.target.value==='on'; if(!voiceOn && 'speechSynthesis' in window) window.speechSynthesis.cancel(); });
+function speak(txt){ if(!voiceOn) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(txt); u.lang='pl-PL'; u.rate=0.95; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
+let audioCtx;
+function ensureAudio(){ if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+function beep(freq=700, dur=200){ if(!audioCtx) return; const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='sine'; o.frequency.value=freq; g.gain.value=.001; o.connect(g); g.connect(audioCtx.destination); o.start(); const now=audioCtx.currentTime; g.gain.exponentialRampToValueAtTime(.25, now+.02); g.gain.exponentialRampToValueAtTime(.0001, now+dur/1e3); o.stop(now+dur/1e3+.02); }
+function $(s){ return document.querySelector(s); }
+function flash(el, color){ const old = el.style.borderColor; el.style.borderColor = color; setTimeout(()=> el.style.borderColor = old || '#FF6AD5', 350); }
+</script>
+</body>
+</html>

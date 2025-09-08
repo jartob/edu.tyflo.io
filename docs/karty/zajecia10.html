@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 10 – Wyszukiwanie wzrokowe (naprawa START)</title>
+<style>
+:root{--accent:#00E0FF; --gap:10px; --rad:14px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1000px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent)}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:.95rem;color:#bbb;margin:4px 0 0}
+.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
+.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
+.cell.target{background:#062a2f;border-style:solid}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.hint{font-weight:800}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>🔎 Zajęcia 10 – Wyszukiwanie wzrokowe</h1>
+  <section class="panel">
+    <div class="controls">
+      <div>
+        <label for="sizeSel">Liczba pól</label>
+        <select id="sizeSel">
+          <option value="12">12</option>
+          <option value="16" selected>16</option>
+          <option value="20">20</option>
+        </select>
+      </div>
+      <div>
+        <label for="distrSel">Poziom dystraktorów</label>
+        <select id="distrSel">
+          <option value="low">niski</option>
+          <option value="mid" selected>średni</option>
+          <option value="high">wysoki</option>
+        </select>
+      </div>
+      <div>
+        <label for="ttsSel">Lektor</label>
+        <select id="ttsSel">
+          <option value="on" selected>Włączony</option>
+          <option value="off">Wyłączony</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="primary" id="goal">🔊 Odczytaj cel</button>
+        <button class="primary" id="start">START</button>
+      </div>
+    </div>
+    <p class="small">Zadanie: szybko <span class="hint">wyszukaj i kliknij symbol ★</span> na planszy. Liczniki zliczają poprawne i błędne reakcje. Brak auto‑timeoutu – plansza czeka na Twoje kliknięcie.</p>
+  </section>
+
+  <section class="panel">
+    <div id="board" class="board" aria-live="polite"></div>
+    <div class="stats">
+      <div class="stat"><b>Próba:</b> <span id="pos">0</span>/<span id="total">0</span></div>
+      <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+      <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+      <div class="stat"><b>Śr. czas reakcji:</b> <span id="rt">–</span></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let voice = true;
+$('#ttsSel').addEventListener('change', e => {
+  voice = e.target.value === 'on';
+  if(!voice && 'speechSynthesis' in window) try{ speechSynthesis.cancel(); } catch(_) {}
+});
+function say(t){
+  if(!voice || !('speechSynthesis' in window)) return;
+  try{ speechSynthesis.cancel(); } catch(_){}
+  const u = new SpeechSynthesisUtterance(t);
+  u.lang = 'pl-PL';
+  speechSynthesis.speak(u);
+}
+$('#goal').addEventListener('click', ()=> say('Celem jest szybkie wyszukanie gwiazdki i kliknięcie jej na planszy.'));
+
+const DISTRACTORS = {
+  low:  ['●','■','▲'],
+  mid:  ['●','■','▲','◆','●','■'],
+  high: ['●','■','▲','◆','⬤','⬛','⬟','▣']
+};
+
+let N=16, total=16, pos=0, ok=0, err=0, rts=[], tShow=0, awaiting=false, targetIdx=-1, busy=false;
+
+function buildGrid(n){
+  const g = $('#board');
+  g.innerHTML='';
+  for(let i=0;i<n;i++){
+    const d = document.createElement('button');
+    d.className = 'cell';
+    d.addEventListener('click', ()=>onPick(i,d));
+    g.appendChild(d);
+  }
+}
+
+function prepareTrial(){
+  const cells = Array.from(document.querySelectorAll('.cell'));
+  cells.forEach(c=>{ c.textContent=''; c.classList.remove('target'); });
+  targetIdx = Math.floor(Math.random()*N);
+  const level = $('#distrSel').value;
+  const symbols = DISTRACTORS[level];
+  for(let i=0;i<N;i++){
+    const el = cells[i];
+    if(i===targetIdx){
+      el.textContent = '★';
+      el.classList.add('target');
+    } else {
+      el.textContent = symbols[Math.floor(Math.random()*symbols.length)];
+    }
+  }
+  awaiting = true;
+  tShow = performance.now();
+}
+
+function onPick(i, el){
+  if(!awaiting || busy) return;
+  busy = true;
+  const rt = Math.round(performance.now()-tShow);
+  rts.push(rt);
+  if(i===targetIdx){
+    ok++; say('dobrze');
+  } else {
+    err++; say('spróbuj ponownie');
+  }
+  $('#ok').textContent = String(ok);
+  $('#err').textContent = String(err);
+  const times = rts.filter(v=>Number.isFinite(v));
+  $('#rt').textContent = times.length ? Math.round(times.reduce((a,b)=>a+b,0)/times.length)+' ms' : '–';
+  awaiting = false;
+  pos++;
+  setTimeout(()=>{
+    busy=false;
+    if(pos>=total){ finish(); }
+    else { $('#pos').textContent = String(pos+1); prepareTrial(); }
+  }, 150);
+}
+
+function start(){
+  N = Number($('#sizeSel').value);
+  total = N;
+  pos=0; ok=0; err=0; rts=[]; awaiting=false; busy=false;
+  $('#total').textContent = String(total);
+  $('#pos').textContent = String(pos+1);
+  $('#ok').textContent = '0'; $('#err').textContent = '0'; $('#rt').textContent='–';
+  buildGrid(N);
+  say('Zaczynamy. Wyszukaj gwiazdkę i kliknij.');
+  setTimeout(prepareTrial, 300);
+}
+
+function finish(){
+  say('Koniec. Świetna praca.');
+  const g = $('#board');
+  const end = document.createElement('div');
+  end.className = 'cell';
+  end.textContent = 'KONIEC';
+  end.style.gridColumn = '1 / -1';
+  end.style.minHeight = '64px';
+  g.appendChild(end);
+}
+
+document.getElementById('start').addEventListener('click', start);
+buildGrid(16);
+</script>
+</body>
+</html>

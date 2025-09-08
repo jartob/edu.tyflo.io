@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 28 – Reakcja na strzałkę (naprawa liczenia)</title>
+<style>
+:root{--accent:#00E0FF; --gap:10px; --rad:14px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:#00E0FF}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:.95rem;color:#bbb;margin:4px 0 0}
+.display{display:flex;align-items:center;justify-content:center;border:2px dashed var(--accent);border-radius:var(--rad);min-height:120px;margin-top:10px;font-size:3rem;gap:16px}
+.actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px}
+.btn{padding:12px 14px;border:2px solid var(--accent);border-radius:12px;background:#000;color:#fff;font-weight:800}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+kbd{background:#111;border:1px solid #444;border-bottom-width:3px;border-radius:6px;padding:2px 6px;font-weight:800}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>➡️ Zajęcia 28 – Reakcja na strzałkę</h1>
+  <section class="panel">
+    <div class="controls">
+      <div>
+        <label for="trials">Liczba prób</label>
+        <select id="trials">
+          <option>10</option>
+          <option selected>16</option>
+          <option>24</option>
+        </select>
+      </div>
+      <div>
+        <label for="ttsSel">Lektor</label>
+        <select id="ttsSel">
+          <option value="on" selected>Włączony</option>
+          <option value="off">Wyłączony</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="primary" id="goal">🔊 Odczytaj cel</button>
+        <button class="primary" id="start">START</button>
+      </div>
+    </div>
+    <p class="small">Zadanie: gdy pojawi się strzałka, kliknij <b>odpowiedni kierunek</b> albo użyj klawiszy: <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd>. Liczniki błędów i poprawnych odpowiedzi naliczają się przy każdej reakcji.</p>
+  </section>
+
+  <section class="panel">
+    <div id="display" class="display" aria-live="polite">—</div>
+    <div class="actions">
+      <button class="btn" id="up">↑ GÓRA</button>
+      <button class="btn" id="down">↓ DÓŁ</button>
+      <button class="btn" id="left">← LEWO</button>
+      <button class="btn" id="right">→ PRAWO</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>Próba:</b> <span id="pos">0</span>/<span id="total">0</span></div>
+      <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+      <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+      <div class="stat"><b>Śr. czas reakcji:</b> <span id="rt">–</span></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let voice = true;
+$('#ttsSel').addEventListener('change', e => {
+  voice = e.target.value === 'on';
+  if(!voice && 'speechSynthesis' in window) try{ speechSynthesis.cancel(); } catch(_) {}
+});
+function say(t){
+  if(!voice || !('speechSynthesis' in window)) return;
+  try{ speechSynthesis.cancel(); } catch(_) {}
+  const u = new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);
+}
+$('#goal').addEventListener('click', ()=> say('Celem jest szybka i trafna reakcja na kierunek strzałki na ekranie.'));
+
+const ARROWS = ['↑','→','↓','←'];
+let seq = [];
+let idx = 0, total=0;
+let ok=0, err=0;
+let awaiting=false;
+let tShow=0;
+let rts=[];
+
+function nextStim(){
+  if(idx>=total){ finish(); return; }
+  const a = ARROWS[Math.floor(Math.random()*4)];
+  seq[idx] = a;
+  $('#display').textContent = a;
+  $('#pos').textContent = String(idx+1);
+  awaiting = true;
+  tShow = performance.now();
+}
+
+function answer(dir){
+  if(!awaiting) return;
+  const rt = Math.round(performance.now()-tShow);
+  const target = seq[idx];
+  const corr = (
+    (dir==='up'    && target==='↑') ||
+    (dir==='down'  && target==='↓') ||
+    (dir==='left'  && target==='←') ||
+    (dir==='right' && target==='→')
+  );
+  if(corr){ ok++; say('dobrze'); } else { err++; say('spróbuj ponownie'); }
+  rts.push(rt);
+  $('#ok').textContent = String(ok);
+  $('#err').textContent = String(err);
+  awaiting=false;
+  idx++;
+  setTimeout(nextStim, 150);
+}
+
+document.getElementById('start').addEventListener('click', ()=>{
+  total = Number($('#trials').value);
+  seq = new Array(total);
+  idx=0; ok=0; err=0; awaiting=false; rts=[];
+  $('#total').textContent = String(total);
+  $('#pos').textContent = '0'; $('#ok').textContent='0'; $('#err').textContent='0'; $('#rt').textContent='–';
+  $('#display').textContent='—';
+  say('Zaczynamy. Reaguj na strzałki.');
+  setTimeout(nextStim, 300);
+});
+
+document.getElementById('up').addEventListener('click', ()=>answer('up'));
+document.getElementById('down').addEventListener('click', ()=>answer('down'));
+document.getElementById('left').addEventListener('click', ()=>answer('left'));
+document.getElementById('right').addEventListener('click', ()=>answer('right'));
+
+// Obsługa klawiatury – strzałki
+document.addEventListener('keydown', (e)=>{
+  const k = e.key;
+  if(k==='ArrowUp') answer('up');
+  else if(k==='ArrowDown') answer('down');
+  else if(k==='ArrowLeft') answer('left');
+  else if(k==='ArrowRight') answer('right');
+});
+
+// Średni czas reakcji – aktualizacja co bodziec
+const rtTimer = setInterval(()=>{
+  const times = rts.filter(v=>Number.isFinite(v));
+  $('#rt').textContent = times.length ? Math.round(times.reduce((a,b)=>a+b,0)/times.length)+' ms' : '–';
+}, 200);
+
+function finish(){
+  $('#display').textContent='Koniec';
+  say('Koniec. Świetna praca.');
+}
+</script>
+</body>
+</html>

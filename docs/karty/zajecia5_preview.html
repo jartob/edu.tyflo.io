@@ -1,0 +1,40 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zajęcia 05 – Sekwencje kierunków (z lektorem)</title>
+<style>:root{--scale:1.0;--accent:#7E57C2}*{box-sizing:border-box}body{margin:0;font-family:system-ui;background:#000;color:#fff;font-size:calc(18px*var(--scale))}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}.panel{border:2px solid var(--accent);border-radius:16px;background:#0e0e0e;padding:16px;margin:12px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}input,select,button{width:100%;padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px}
+button.primary{background:var(--accent);color:#000;font-weight:800;cursor:pointer}.display{border:3px dashed var(--accent);border-radius:16px;min-height:30vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;gap:16px;flex-direction:column}
+.big{font-size:calc(5rem*var(--scale));font-weight:900}.keys{display:grid;grid-template-columns:repeat(3,80px);gap:10px}
+.keybtn{border:2px solid var(--accent);border-radius:12px;padding:12px;background:#000;font-weight:900;font-size:calc(1.4rem*var(--scale));cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:10px;color:#ddd}</style></head><body>
+<main class="wrap"><h1>➡️ Zajęcia 05 – Sekwencje kierunków (z lektorem)</h1>
+<section class="panel"><div class="controls">
+  <div><label>Długość sekwencji</label><input id="len" type="number" min="3" max="16" value="5"/></div>
+  <div><label>Rundy</label><input id="rounds" type="number" min="3" max="30" value="8"/></div>
+  <div><label>Czas pokazu (ms)</label><input id="show" type="number" min="200" max="2000" step="50" value="650"/></div>
+  <div><label>Przerwa (ms)</label><input id="isi" type="number" min="150" max="2000" step="50" value="250"/></div>
+  <div><label>Lektor</label><select id="tts"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
+  <div style="align-self:end"><button id="start" class="primary">START</button></div>
+</div>
+<div class="display" id="disp"><div class="big" id="arrow">START</div><div class="keys">
+  <button class="keybtn" data-k="ArrowUp">↑</button><div></div><button class="keybtn" data-k="ArrowRight">→</button>
+  <button class="keybtn" data-k="ArrowLeft">←</button><div></div><button class="keybtn" data-k="ArrowDown">↓</button></div></div>
+<div class="stats"><div class="stat"><b>Runda:</b> <span id="n">0 / 0</span></div><div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div><div class="stat"><b>Błędne:</b> <span id="err">0</span></div></div>
+</section></main>
+<script>
+const $=s=>document.querySelector(s); const DIRS=[{k:'↑',code:'ArrowUp',name:'góra'},{k:'↓',code:'ArrowDown',name:'dół'},{k:'←',code:'ArrowLeft',name:'lewo'},{k:'→',code:'ArrowRight',name:'prawo'}];
+let voiceOn=true; $('#tts').addEventListener('change',e=>{voiceOn=e.target.value==='on'; if(!voiceOn&&'speechSynthesis'in window) speechSynthesis.cancel();});
+function say(t){ if(!voiceOn||!('speechSynthesis'in window))return; const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; u.rate=0.97; speechSynthesis.cancel(); speechSynthesis.speak(u); }
+const el={arrow:$('#arrow'),start:$('#start'),len:$('#len'),rounds:$('#rounds'),show:$('#show'),isi:$('#isi'),n:$('#n')}; let st={total:8,i:0,seq:[],input:[],phase:'idle'};
+function rand(a){return a[Math.floor(Math.random()*a.length)];}
+async function showSeq(){ st.phase='show'; el.arrow.textContent=''; for(const d of st.seq){ el.arrow.textContent=d.k; say(d.name); await new Promise(r=>setTimeout(r, parseInt(el.show.value)||650)); el.arrow.textContent=''; await new Promise(r=>setTimeout(r, parseInt(el.isi.value)||250)); } st.phase='input'; st.input=[]; say('Twoja kolej');}
+function nextRound(){ st.i++; el.n.textContent=`${Math.min(st.i,st.total)} / ${st.total}`; if(st.i>st.total){ el.arrow.textContent='KONIEC'; say('koniec ćwiczenia'); st.phase='idle'; return; }
+  const L=parseInt(el.len.value)||5; st.seq=[]; for(let i=0;i<L;i++) st.seq.push(rand(DIRS)); showSeq(); }
+function start(){ st.total=parseInt($('#rounds').value)||8; st.i=0; st.seq=[]; st.input=[]; $('#ok').textContent='0'; $('#err').textContent='0'; nextRound(); }
+function press(code){ if(st.phase!=='input') return; const d=DIRS.find(x=>x.code===code); if(!d) return; st.input.push(d); const pos=st.input.length-1;
+  if(st.seq[pos] && st.seq[pos].code===code){ say('dobrze'); if(st.input.length===st.seq.length){ $('#ok').textContent=String(parseInt($('#ok').textContent||'0')+1); say('runda zaliczona'); setTimeout(nextRound,500); st.phase='next'; } }
+  else { $('#err').textContent=String(parseInt($('#err').textContent||'0')+1); say('błąd'); setTimeout(nextRound,700); st.phase='next'; } }
+$('#start').addEventListener('click', start); document.querySelectorAll('.keybtn').forEach(b=>b.addEventListener('click',()=>press(b.dataset.k)));
+window.addEventListener('keydown',e=>{ if(['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement?.tagName)) return;
+if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){ e.preventDefault(); press(e.code);} });
+</script></body></html>

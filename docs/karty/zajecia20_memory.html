@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zajęcia 20 – Pamięć wzrokowa: dopasuj pary</title>
+<style>
+  :root { --accent:#FF8A65; --scale:1.0; }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff;font-size:calc(18px * var(--scale));}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px;}
+  h1{font-size:calc(2rem * var(--scale));margin:0 0 8px;}
+  .note{color:#ffd0c2;}
+  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:12px 0;}
+  label{display:block;margin-bottom:6px;}
+  input,select,button{width:100%;padding:12px 14px;font-size:calc(1rem * var(--scale));background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;}
+  button.primary{background:var(--accent);color:#000;font-weight:800;cursor:pointer;}
+  .panel{border:2px solid var(--accent);border-radius:16px;background:#111;padding:16px;margin-bottom:14px;}
+  .grid{display:grid;gap:10px;justify-content:center;margin-top:12px;}
+  .card{width:90px;height:90px;display:flex;align-items:center;justify-content:center;background:#000;border:2px solid var(--accent);border-radius:12px;cursor:pointer;font-size:2rem;}
+  .card.open{background:#FF8A65;color:#000;}
+  .card.matched{background:#4caf50;color:#fff;cursor:default;}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px;}
+  .stat{background:#111;border:1px solid #333;border-radius:12px;padding:10px;color:#ddd;}
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>🃏 Zajęcia 20 – Pamięć wzrokowa: dopasuj pary</h1>
+    <p class="note">Odkrywaj karty i znajdź wszystkie pary obrazków. Ćwiczenie rozwija pamięć i koncentrację.</p>
+
+    <section class="panel">
+      <div class="controls">
+        <div><label>Rozmiar planszy</label><select id="size"><option value="4">4x4</option><option value="5">5x4</option><option value="6">6x4</option></select></div>
+        <div><label>Liczba rund</label><input id="rounds" type="number" min="1" max="20" value="5" /></div>
+        <div style="align-self:end"><button id="start" class="primary">START</button></div>
+      </div>
+
+      <div class="grid" id="grid"></div>
+
+      <div class="stats">
+        <div class="stat"><b>Runda:</b> <span id="n">0</span></div>
+        <div class="stat"><b>Ruchy:</b> <span id="moves">0</span></div>
+        <div class="stat"><b>Trafione pary:</b> <span id="pairs">0</span></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+const el={size:document.getElementById('size'),rounds:document.getElementById('rounds'),start:document.getElementById('start'),
+  grid:document.getElementById('grid'),n:document.getElementById('n'),moves:document.getElementById('moves'),pairs:document.getElementById('pairs')};
+
+let st={round:0,total:5,moves:0,pairs:0,open:[],lock:false};
+
+function symbols(){ return ['🍎','🍌','🍊','🍉','🍇','🍓','🥝','🍍','🥕','🌽','🍒','🥥','🥑','🍅','🍄','🥔','🧀','🍪','🍩','🍫']; }
+
+function build(){
+  const rows=parseInt(el.size.value)||4;
+  const cols=(rows==4?4:(rows==5?4:4));
+  const total=rows*cols;
+  const syms=symbols().slice(0,total/2);
+  const arr=[...syms,...syms].sort(()=>Math.random()-0.5);
+  el.grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+  el.grid.innerHTML='';
+  arr.forEach((s,i)=>{
+    const b=document.createElement('button');
+    b.className='card'; b.dataset.val=s; b.textContent='?';
+    b.addEventListener('click',()=>clickCard(b));
+    el.grid.appendChild(b);
+  });
+  st.moves=0;st.pairs=0;st.open=[];st.lock=false;
+  el.moves.textContent='0';el.pairs.textContent='0';
+}
+
+function clickCard(b){
+  if(st.lock||b.classList.contains('open')||b.classList.contains('matched')) return;
+  b.classList.add('open'); b.textContent=b.dataset.val;
+  st.open.push(b);
+  if(st.open.length==2){
+    st.moves++; el.moves.textContent=st.moves;
+    const [a,c]=st.open;
+    if(a.dataset.val==c.dataset.val){
+      a.classList.add('matched'); c.classList.add('matched'); st.pairs++; el.pairs.textContent=st.pairs;
+    } else {
+      st.lock=true; setTimeout(()=>{a.classList.remove('open');c.classList.remove('open');a.textContent='?';c.textContent='?';st.lock=false;},800);
+    }
+    st.open=[];
+  }
+}
+
+function start(){
+  st.round=0; st.total=parseInt(el.rounds.value)||5; next();
+}
+
+function next(){
+  st.round++; el.n.textContent=st.round;
+  if(st.round>st.total){ alert('Koniec ćwiczenia'); return; }
+  build();
+}
+
+el.start.addEventListener('click', start);
+</script>
+</body>
+</html>

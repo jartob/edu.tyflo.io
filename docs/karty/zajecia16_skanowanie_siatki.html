@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Skanowanie siatki – 3×3 / 4×4 / 5×5 / 6×6</title>
+<style>
+  :root { --scale: 1.0; --accent:#FFD400; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#000; color:#FFD400; font-size:calc(18px * var(--scale)); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: calc(2rem * var(--scale)); margin: 0 0 8px; }
+  .note { font-size: calc(1rem * var(--scale)); color:#ffe47a; }
+  .controls { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
+  label { display:block; margin-bottom:6px; }
+  input[type="number"], input[type="range"], select, button { width:100%; padding:12px 14px; font-size:calc(1rem * var(--scale)); background:#000; color:#fff; border:2px solid var(--accent); border-radius:12px; }
+  button.primary { background:var(--accent); color:#000; border-color:#FFD400; font-weight:800; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:not-allowed; }
+  .panel { border:2px solid var(--accent); border-radius:16px; background:#111; padding:16px; margin-bottom:14px; }
+  .display { border:3px dashed var(--accent); border-radius:16px; min-height: 40vh; display:flex; align-items:center; justify-content:center; text-align:center; padding:16px; position:relative; }
+  .grid { width:100%; display:grid; gap:12px; margin-top:14px; }
+  .cell { display:flex; align-items:center; justify-content:center; border:2px solid var(--accent); border-radius:12px; padding:18px; cursor:pointer; background:#000; color:#fff; font-weight:900; font-size:calc(2.2rem * var(--scale)); min-height:90px; }
+  .cell:focus { outline:none; }
+  .focus { outline:4px solid #FFD400; }
+  .choice { padding:14px 18px; border:2px solid var(--accent); border-radius:12px; background:#000; color:#fff; font-weight:800; text-align:center; font-size:calc(1.3rem * var(--scale)); }
+  .target { font-size: calc(2rem * var(--scale)); }
+  .stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:10px; margin-top:12px; }
+  .stat { background:#111; border:1px solid #333; border-radius:12px; padding:10px; }
+  .k { display:inline-flex; min-width:56px; padding:6px 10px; border:2px solid var(--accent); border-radius:8px; margin: 0 4px; font-weight:800; }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>🧭 Karta pracy – Skanowanie siatki</h1>
+    <p class="note">Wybierz w siatce komórkę z <b>celem</b>. Skróty: strzałki + <span class="k">Enter</span> (dla 3×3 dodatkowo <span class="k">1–9</span>).</p>
+
+    <section class="panel">
+      <div class="controls">
+        <div>
+          <label for="fontsize">Wielkość interfejsu: <span id="fontVal">100%</span></label>
+          <input id="fontsize" type="range" min="80" max="180" step="5" value="100" />
+        </div>
+        <div>
+          <label for="theme">Kontrast</label>
+          <select id="theme">
+            <option value="dark">Czarne tło (wysoki kontrast)</option>
+            <option value="light">Białe tło (wysoki kontrast)</option>
+          </select>
+        </div>
+        <div>
+          <label>Liczba rund</label>
+          <input id="rounds" type="number" min="4" max="60" value="12" />
+        </div>
+        <div>
+          <label>Rozmiar siatki</label>
+          <select id="size">
+            <option value="3">3 × 3</option>
+            <option value="4">4 × 4</option>
+            <option value="5">5 × 5</option>
+            <option value="6" selected>6 × 6</option>
+          </select>
+        </div>
+        <div>
+          <label>Zestaw symboli</label>
+          <select id="set">
+            <option value="shapes">Kształty</option>
+            <option value="letters">Litery</option>
+            <option value="digits">Cyfry</option>
+          </select>
+        </div>
+        <div>
+          <label for="tts">Lektor</label>
+          <select id="tts"><option value="on">Włączony</option><option value="off">Wyłączony</option></select>
+        </div>
+        <div style="align-self:end"><button id="start" class="primary">START</button></div>
+      </div>
+
+      <div class="display" id="disp"><div class="choice target" id="target">CEL: —</div></div>
+      <div class="grid" id="grid" style="grid-template-columns: repeat(6, 1fr);"></div>
+
+      <div class="stats">
+        <div class="stat"><b>Runda:</b> <span id="n">0 / 0</span></div>
+        <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+        <div class="stat"><b>Ostatnia reakcja:</b> <span id="rt">—</span></div>
+        <div class="stat"><b>Najlepsza:</b> <span id="best">—</span></div>
+        <div class="stat"><b>Średnia:</b> <span id="avg">—</span></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+const font = document.getElementById('fontsize');
+const fontVal = document.getElementById('fontVal');
+font.addEventListener('input', ()=>{ const v=parseInt(font.value,10); fontVal.textContent=v+'%'; document.documentElement.style.setProperty('--scale', (v/100)); });
+
+document.getElementById('theme').addEventListener('change', (e)=>{ const v=e.target.value; document.body.style.background = v==='light' ? '#fff' : '#000'; document.body.style.color = v==='light' ? '#000' : '#FFD400'; document.querySelectorAll('.panel,.choice,input,select,button,.display,.cell').forEach(el=>{ el.style.borderColor = v==='light' ? '#000' : getComputedStyle(document.documentElement).getPropertyValue('--accent'); }); });
+
+let voiceOn = true;
+document.getElementById('tts').addEventListener('change', (e)=>{ voiceOn = e.target.value==='on'; if(!voiceOn && 'speechSynthesis' in window) window.speechSynthesis.cancel(); });
+function speak(txt){ if(!voiceOn) return; if(!('speechSynthesis' in window)) return; const u=new SpeechSynthesisUtterance(txt); u.lang='pl-PL'; u.rate=0.95; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
+
+function $(s){ return document.querySelector(s); }
+function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function flash(el, color){ const old = el.style.borderColor; el.style.borderColor = color; setTimeout(()=> el.style.borderColor = old || '#FFD400', 350); }
+
+const sets = {
+  shapes: ['●','■','▲','◆','○','□','△','◇','★','✚','✕','⬤','⬛','▴','⬟'],
+  letters: 'A E F H K M N O P R S T U V W X Y Z'.split(' '),
+  digits: ['1','2','3','4','5','6','7','8','9']
+};
+
+const el = { size:$('#size'), set:$('#set'), rounds:$('#rounds'), start:$('#start'), grid:$('#grid'), target:$('#target'), disp:$('#disp'), n:$('#n'), ok:$('#ok'), rt:$('#rt'), best:$('#best'), avg:$('#avg') };
+const state = { total:12, n:0, ok:0, best:null, times:[], target:null, cells:[], focusIdx:0, t0:0 };
+
+function start(){ state.total = clamp(parseInt(el.rounds.value||'12',10),4,60); state.n=0; state.ok=0; state.best=null; state.times=[]; next(); }
+
+function next(){ state.n++; updateStats(); if(state.n>state.total){ el.target.textContent = 'KONIEC'; speak('Koniec ćwiczenia'); return; }
+  const size = parseInt(el.size.value,10); const pool = sets[el.set.value]; const cols=size, rows=size, total=cols*rows;
+  el.grid.style.gridTemplateColumns = `repeat(${cols},1fr)`; const scale = size===3?1 : size===4?0.85 : size===5?0.72 : 0.6; el.grid.style.gap = size>=6? '8px' : size===5? '10px' : '12px';
+  state.target = pool[Math.floor(Math.random()*pool.length)]; el.target.textContent = 'CEL: '+state.target; speak('Cel: '+state.target);
+  const items = Array.from({length:total}, ()=> pool[Math.floor(Math.random()*pool.length)]);
+  const targetIndex = Math.floor(Math.random()*total); items[targetIndex] = state.target;
+  el.grid.innerHTML=''; state.cells=[]; items.forEach((sym,i)=>{ const b=document.createElement('button'); b.className='cell'; b.innerHTML = sym; b.style.fontSize = `calc(${2.2*scale}rem * var(--scale))`; b.style.minHeight = `${Math.round(90*scale)}px`; b.style.padding = `${Math.round(18*scale)}px`; b.addEventListener('click', ()=> choose(i)); el.grid.appendChild(b); state.cells.push(b); });
+  state.focusIdx = 0; focusCell(0);
+  state.t0 = performance.now();
+}
+
+function choose(i){ const t = Math.max(0, performance.now()-state.t0); const good = el.grid.children[i].textContent===state.target; if(good){ state.ok++; flash(el.disp,'#59ff9a'); speak('Dobrze'); } else { flash(el.disp,'#ff5959'); speak('Źle'); }
+  state.best = state.best===null ? t : Math.min(state.best, t); state.times.push(t); el.rt.textContent = Math.round(t)+' ms'; updateStats(); setTimeout(next, 700); }
+
+function updateStats(){ el.n.textContent = `${Math.min(state.n, state.total)} / ${state.total}`; el.ok.textContent = state.ok; el.best.textContent = state.best===null? '—' : Math.round(state.best)+' ms'; el.avg.textContent = state.times.length? Math.round(state.times.reduce((a,b)=>a+b,0)/state.times.length)+' ms' : '—'; }
+
+function focusCell(idx){ state.cells.forEach((c,i)=> c.classList.toggle('focus', i===idx)); }
+
+window.addEventListener('keydown', (e)=>{
+  if (document.activeElement && ['INPUT','SELECT','TEXTAREA','BUTTON'].includes(document.activeElement.tagName)) return;
+  const size = parseInt(el.size.value,10); const cols=size, rows=size; const total=cols*rows;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){
+    e.preventDefault(); const r=Math.floor(state.focusIdx/cols), c=state.focusIdx%cols; let nr=r, nc=c;
+    if(e.code==='ArrowUp') nr=(r-1+rows)%rows; if(e.code==='ArrowDown') nr=(r+1)%rows; if(e.code==='ArrowLeft') nc=(c-1+cols)%cols; if(e.code==='ArrowRight') nc=(c+1)%cols;
+    state.focusIdx = nr*cols+nc; focusCell(state.focusIdx);
+  }
+  if(e.code==='Enter'){ e.preventDefault(); choose(state.focusIdx); }
+  if(size===3 && e.code.startswith('Digit')){ const d=parseInt(e.code.slice(-1),10); if(!isNaN(d)){ const idx=d-1; if(idx>=0 && idx<total){ choose(idx); } } }
+});
+el.start.addEventListener('click', start);
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zajęcia 20 – 1‑back (kierunki) – kompaktowe odstępy</title>
+<style>
+:root{--accent:#00E0FF; --gap:6px; --pad:8px; --rad:10px; --fs:16px}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff;font-size:var(--fs)}
+.wrap{max-width:980px;margin:0 auto;padding:16px}
+h1{margin:0 0 6px;color:var(--accent);font-size:1.2rem}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:var(--pad);margin:8px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--gap);align-items:end}
+label{display:block;margin-bottom:4px}
+select,input,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:var(--rad);font-weight:700}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:.9rem;color:#bbb;margin:4px 0 0}
+.display{border:2px dashed var(--accent);border-radius:var(--rad);min-height:110px;display:flex;align-items:center;justify-content:center;margin-top:var(--gap);font-size:3rem}
+.actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--gap);margin-top:var(--gap)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--gap);margin-top:var(--gap)}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:var(--rad);padding:8px;color:#ddd}
+.compact .panel{padding:10px}
+.compact .display{min-height:90px;font-size:2.4rem}
+</style>
+</head>
+<body>
+<main class="wrap compact">
+  <h1>🧠 Zajęcia 20 – 1‑back (kierunki) – wersja kompaktowa</h1>
+
+  <section class="panel">
+    <div class="controls">
+      <div>
+        <label for="len">Długość sekwencji</label>
+        <select id="len">
+          <option value="12">12 bodźców</option>
+          <option value="16" selected>16 bodźców</option>
+          <option value="24">24 bodźce</option>
+        </select>
+      </div>
+      <div>
+        <label for="spd">Tempo</label>
+        <select id="spd">
+          <option value="1400">wolno</option>
+          <option value="1000" selected>średnio</option>
+          <option value="700">szybko</option>
+        </select>
+      </div>
+      <div>
+        <label for="ttsSel">Lektor</label>
+        <select id="ttsSel">
+          <option value="on" selected>Włączony</option>
+          <option value="off">Wyłączony</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:var(--gap);flex-wrap:wrap">
+        <button class="primary" id="goal">🔊 Odczytaj cel</button>
+        <button class="primary" id="start">START</button>
+      </div>
+    </div>
+    <p class="small">Zadanie: oceń, czy <b>aktualny kierunek</b> jest taki sam jak <b>poprzedni</b>. Użyj przycisków „TAK” / „NIE”.</p>
+  </section>
+
+  <section class="panel">
+    <div id="display" class="display" aria-live="polite">—</div>
+    <div class="actions">
+      <button id="yes">✅ TAK – taki sam</button>
+      <button id="no">✖ NIE – inny</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>Pozycja:</b> <span id="pos">0</span>/<span id="total">0</span></div>
+      <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+      <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+      <div class="stat"><b>Reakcje:</b> <span id="rts">–</span></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+
+let voice = true;
+$('#ttsSel').addEventListener('change', e => {
+  voice = e.target.value === 'on';
+  if(!voice && 'speechSynthesis' in window) try{ speechSynthesis.cancel(); } catch(_) {}
+});
+function say(t){
+  if(!voice || !('speechSynthesis' in window)) return;
+  try{ speechSynthesis.cancel(); } catch(_) {}
+  const u = new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);
+}
+$('#goal').addEventListener('click', ()=> say('Celem jest ćwiczenie pamięci roboczej w zadaniu jeden bek. Oceń czy aktualny kierunek jest taki sam jak poprzedni.'));
+
+const arrows = ['↑','→','↓','←'];
+let seq = [];
+let idx = 0;
+let ok = 0, err = 0;
+let total = 0;
+let timer = null;
+let awaiting = false;
+let lastArrow = null;
+let tShow = 0;
+let rtList = [];
+
+function genSeq(n){
+  const out = [];
+  for(let i=0;i<n;i++){
+    out.push(arrows[Math.floor(Math.random()*arrows.length)]);
+  }
+  return out;
+}
+
+function showNext(){
+  if(idx >= total){
+    finish();
+    return;
+  }
+  const a = seq[idx];
+  $('#display').textContent = a;
+  $('#pos').textContent = String(idx+1);
+  awaiting = true;
+  tShow = performance.now();
+  idx++;
+  // auto-advance in case of no response (counts as error)
+  const spd = Number($('#spd').value);
+  clearTimeout(timer);
+  timer = setTimeout(()=>{
+    if(awaiting){ err++; awaiting=false; rtList.push(null); nextStep(); }
+  }, spd);
+}
+
+function answer(isSame){
+  if(!awaiting) return;
+  clearTimeout(timer);
+  awaiting = false;
+  const rt = Math.round(performance.now() - tShow);
+  const same = lastArrow !== null && seq[idx-1] === lastArrow;
+  if(isSame === same){ ok++; say('dobrze'); } else { err++; say('spróbuj ponownie'); }
+  rtList.push(rt);
+  nextStep();
+}
+
+function nextStep(){
+  $('#ok').textContent = String(ok);
+  $('#err').textContent = String(err);
+  const showRts = rtList.filter(v=>v!==null);
+  $('#rts').textContent = showRts.length ? Math.round(showRts.reduce((a,b)=>a+b,0)/showRts.length)+' ms' : '–';
+  lastArrow = seq[idx-1];
+  setTimeout(showNext, 150);
+}
+
+function start(){
+  seq = genSeq(Number($('#len').value));
+  total = seq.length;
+  $('#total').textContent = String(total);
+  idx = 0; ok = 0; err = 0; lastArrow = null; rtList = [];
+  $('#ok').textContent='0'; $('#err').textContent='0'; $('#pos').textContent='0'; $('#rts').textContent='–';
+  $('#display').textContent = '—';
+  say('Zaczynamy ćwiczenie jeden bek. Przygotuj się.');
+  setTimeout(showNext, 400);
+}
+
+document.getElementById('start').addEventListener('click', start);
+document.getElementById('yes').addEventListener('click', ()=>answer(true));
+document.getElementById('no').addEventListener('click', ()=>answer(false));
+
+function finish(){
+  $('#display').textContent = 'Koniec';
+  say('Koniec. Świetna robota.');
+}
+</script>
+</body>
+</html>

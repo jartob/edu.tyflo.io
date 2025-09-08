@@ -1,0 +1,50 @@
+<!DOCTYPE html><html lang='pl'><head><meta charset='utf-8'/><meta name='viewport' content='width=device-width, initial-scale=1'/>
+<title>Zajęcia 14 – Skanowanie liczb (z lektorem)</title><style>:root{--accent:#00E0FF}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:24px}
+.panel{border:2px solid var(--accent);border-radius:16px;background:#0e0e0e;padding:16px;margin:12px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+button,select,input{padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px}
+button.primary{background:var(--accent);color:#000;font-weight:800;cursor:pointer}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:8px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:10px;color:#ddd}
+.note{color:#bbb}a{color:#0ff}
+.cell{aspect-ratio:1/1;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900}
+</style>
+<style>.grid{display:grid;gap:8px;border:3px dashed #42A5F5;border-radius:16px;padding:12px;margin-top:10px}
+.num{border:2px solid #42A5F5;background:#000;color:#fff;font-size:1.6rem}</style></head>
+<body><main class='wrap'>
+<h1>🔢 Zajęcia 14 – Skanowanie liczb (z lektorem)</h1>
+<section class='panel'>
+  <div class='controls'>
+    <div><label>Siatka</label><select id='n'><option>3</option><option selected>4</option><option>5</option><option>6</option></select></div>
+    <div><label>Maks. liczba</label><input id='max' type='number' min='8' max='60' value='20'/></div>
+    <div><label>Lektor</label><select id='tts'><option value='on' selected>Włączony</option><option value='off'>Wyłączony</option></select></div>
+    <div style='align-self:end'><button id='start' class='primary'>START</button></div>
+  </div>
+  <p class='note'>Klikaj liczby w <b>rosnącej kolejności</b>: 1, 2, 3, …</p>
+  <div id='grid' class='grid'></div>
+  <div class='stats'><div class='stat'><b>Następna liczba:</b> <span id='need'>1</span></div><div class='stat'><b>Błędy:</b> <span id='err'>0</span></div></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+let voice=true; $('#tts').addEventListener('change',e=>{voice=e.target.value==='on'; if(!voice&&'speechSynthesis'in window) try{speechSynthesis.cancel();}catch(_ ){}});
+function say(t){ if(!voice||!('speechSynthesis'in window))return; const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; try{speechSynthesis.cancel();}catch(_ ){} speechSynthesis.speak(u);}
+let need=1;
+function start(){
+  const N=parseInt($('#n').value)||4; const M=parseInt($('#max').value)||20;
+  const nums=[...Array(M).keys()].slice(1);
+  nums.sort(()=>Math.random()-0.5);
+  const total=N*N; const sel = nums.slice(0,total);
+  const g=$('#grid'); g.style.gridTemplateColumns='repeat('+N+',1fr)'; g.innerHTML='';
+  need=1; $('#need').textContent='1'; $('#err').textContent='0';
+  sel.forEach(v=>{ const b=document.createElement('button'); b.className='cell num'; b.textContent=v;
+    b.addEventListener('click',()=>{ if(v===need){ b.disabled=true; b.style.opacity='.4'; need++; $('#need').textContent=need; say(String(v)); } else { $('#err').textContent=String(parseInt($('#err').textContent)+1); say('błąd'); } });
+    g.appendChild(b); });
+  say('Klikaj po kolei rosnące liczby');
+}
+document.getElementById('start').addEventListener('click', start);
+</script>
+</body></html>
