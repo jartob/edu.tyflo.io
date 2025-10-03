@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>GRY ONLINE</title>
+<style>
+:root{--accent:#00E0FF}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1200px;margin:0 auto;padding:20px}
+h1{margin:0 0 10px;font-weight:900}
+h2{margin:10px 0 8px;font-weight:800}
+ul{list-style:none;margin:0;padding:10px; display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:8px, border:2px solid var(--accent); border-radius:12px;background:#0e0e0e;}
+.item{display:flex;align-items:center;gap:8px;border:1px solid #233;border-radius:10px;padding:8px;background:#000}
+a.btn{margin-left:auto;border:2px solid var(--accent);border-radius:10px;padding:6px 10px;color:#000;background:var(--accent);text-decoration:none;font-weight:800}
+
+
+
+button.reset{border:2px solid #f44;color:#f44;background:#000;border-radius:10px;padding:6px 10px;font-weight:800}
+.monthbar{display:flex;gap:10px;align-items:center;padding:10px 14px;border-top:1px solid #233}
+.monthbar .info{font-weight:800}
+</style>
+<script>
+const KEY = n => `kp2_z${n}`;
+function updateCounters(){
+  let total=0, done=0;
+  document.querySelectorAll('[data-month]').forEach(box=>{
+    const checks = box.querySelectorAll('input[type="checkbox"]');
+    const d = Array.from(checks).filter(c=>c.checked).length;
+    const c = box.querySelector('.mcount'); if(c) c.textContent = `${d} / ${checks.length}`;
+    total += checks.length; done += d;
+  });
+  document.querySelector('.total').textContent = `Łącznie ukończono: ${done} / ${total}`;
+}
+function resetRange(a,b){
+  if(!confirm(`Wyzerować zaznaczenia ${a}–${b}?`)) return;
+  for(let n=a;n<=b;n++) localStorage.removeItem(KEY(n));
+  document.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
+    const n=Number(cb.dataset.n);
+    if(n>=a && n<=b) cb.checked=false;
+  });
+  updateCounters();
+}
+function resetMonth(box){
+  const a=Number(box.dataset.from), b=Number(box.dataset.to);
+  resetRange(a,b);
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('input[type="checkbox"]').forEach(cb=>{
+    const n=Number(cb.dataset.n); const v=localStorage.getItem(KEY(n));
+    if(v!==null) cb.checked=(v==='true');
+    cb.addEventListener('change',()=>{ localStorage.setItem(KEY(n), cb.checked?'true':'false'); updateCounters(); });
+  });
+  updateCounters();
+});
+</script>
+</head>
+<body><main class="wrap">
+  <h1>GRY ONLINE</h1>
+
+  <ul>
+    <li class="item"><label for="g1">Gra 2 osoby</label><a class="btn" href="docs/gry/Gra_2_osoby_lektor.html">Otwórz</a></li>
+    <li class="item"><label for="g2">Gra podróż po mieście</label><a class="btn" href="docs/gry/Gra_Podroz_po_miescie.html">Otwórz</a></li>
+<li class="item"><label for="g3">Gra sekwencyjna - autko</label><a class="btn" href="docs/gry/gra_sekwencyjna_autko.html">Otwórz</a></li>
+<li class="item"><label for="g4">Gra sekwencyjna - kotek</label><a class="btn" href="docs/gry/gra_sekwencyjna_kotek.html">Otwórz</a></li>
+<li class="item"><label for="g5">Gra sekwencyjna - motocykl</label><a class="btn" href="docs/gry/gra_sekwencyjna_motocykl.html">Otwórz</a></li>
+<li class="item"><label for="g6">Gra sekwencyjna - piesek</label><a class="btn" href="docs/gry/gra_sekwencyjna_piesek.html">Otwórz</a></li>
+<li class="item"><label for="g7">Gra orientacja - autko</label><a class="btn" href="docs/gry/gra_autko_lektor.html">Otwórz</a></li>
+<li class="item"><label for="g8">Gra orientacja - kotek</label><a class="btn" href="docs/gry/gra_kotek_lektor.html">Otwórz</a></li>
+<li class="item"><label for="g9">Gra orientacja - motocykl</label><a class="btn" href="docs/gry/gra_motocykl_lektor.html">Otwórz</a></li>
+<li class="item"><label for="g10">Gra orientacja - piesek</label><a class="btn" href="docs/gry/gra_piesek_lektor.html">Otwórz</a></li>
+<li class="item"><label for="g11">Gra reakcyjna</label><a class="btn" href="docs/gry/gra_reakcyjna_online_dla_dzieci_slabowidzacych.html">Otwórz</a></li>
+<li class="item"><label for="g12">Gra Piracka Przygoda</label><a class="btn" href="docs/gry/Piracka_przygoda_WORKING.html">Otwórz</a></li>
+<li class="item"><label for="g13">Gra Safari w Dżungli</label><a class="btn" href="docs/gry/Safari_w_dzungli_WORKING.html">Otwórz</a></li>
+  </ul>
+
+ </main></body></html>
