@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="pl"><head><meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>Zajęcia 56 – Simon z rotacją</title>
@@ -28,7 +27,10 @@ kbd{border:2px solid #555;padding:2px 6px;border-radius:6px;background:#111}
 .grid{display:grid;gap:10px}
 .target{font-weight:900}
 .note{color:#9ef}
-</style></head><body><button id="gen56">Generuj</button><div id="seq56"></div><main class="wrap">
+
+.sequence{margin-top:12px;display:flex;flex-wrap:wrap;align-items:center}
+.sequence span{border:2px solid var(--accent);border-radius:8px;padding:6px 10px;margin:3px;display:inline-block}
+</style></head><body><button id="gen56">Generuj</button><div id="seq56" aria-live="polite" class="sequence"></div><main class="wrap">
 <h1>🧠 Zajęcia 56 – Simon z rotacją przycisków</h1><button id="speak56">🔈 Lektor</button>
 <section class="panel"><div class="row"><button class="primary" id="start">START</button><span class="small">Po każdej rundzie przyciski zmieniają położenie (adaptacja przestrzenna).</span></div></section>
 <section class="panel">
@@ -49,11 +51,38 @@ function makeButtons(){
 }
 let btns=makeButtons();
 function flash(b){ b.classList.add('on'); setTimeout(()=>b.classList.remove('on'),300); }
+
+// helper to render visible sequence in #seq56
+function renderSequenceDisplay(){
+  const out = document.getElementById('seq56');
+  if(!out) return;
+  out.innerHTML = '';
+  seq.forEach(idx=>{
+    const el=document.createElement('span');
+    el.textContent = icons[idx]; // pokazujemy symbole
+    out.appendChild(el);
+  });
+}
+
 function play(){
-  playing=true; let i=0; say('Uwaga, sekwencja'); const t=setInterval(()=>{ const idx=seq[i]; const b=btns.find(x=>Number(x.dataset.i)===idx); flash(b); i++; if(i>=seq.length){ clearInterval(t); playing=false; input=0; say('Twoja kolej'); } },600);
+  playing=true; let i=0; say('Uwaga, sekwencja');
+
+  // pokaż sekwencję w #seq56 (dla wzrokowego wsparcia)
+  renderSequenceDisplay();
+
+  const t=setInterval(()=>{
+    const idx=seq[i];
+    const b=btns.find(x=>Number(x.dataset.i)===idx);
+    if(b) flash(b);
+    i++; 
+    if(i>=seq.length){
+      clearInterval(t);
+      playing=false; input=0; say('Twoja kolej');
+    } 
+  },600);
 }
 function newRound(){ seq.push(Math.floor(Math.random()*4)); document.getElementById('len').textContent=seq.length; play(); }
-function start(){ seq=[Math.floor(Math.random()*4),Math.floor(Math.random()*4)]; ok=0; err=0; document.getElementById('ok').textContent='0'; document.getElementById('err').textContent='0'; btns=makeButtons(); document.getElementById('len').textContent=seq.length; play(); }
+function start(){ seq=[Math.floor(Math.random()*4),Math.floor(Math.random()*4)]; ok=0; err=0; document.getElementById('ok').textContent='0'; document.getElementById('err').textContent='0'; btns=makeButtons(); document.getElementById('len').textContent=seq.length; renderSequenceDisplay(); play(); }
 document.addEventListener('click',e=>{ const b=e.target.closest('.btn4'); if(!b||playing) return; const i=Number(b.dataset.i); flash(b);
   if(i===seq[input]){ input++; if(input===seq.length){ ok++; document.getElementById('ok').textContent=ok; btns=makeButtons(); newRound(); } } else { err++; document.getElementById('err').textContent=err; input=0; }
 });
@@ -113,6 +142,7 @@ document.getElementById('start').onclick=start;
               var start=Math.floor(Math.random()*5)+1;
               var step=Math.floor(Math.random()*4)+1;
               out.innerHTML='';
+              // generate numeric sequence (kept for backward compatibility)
               for(var i=0;i<n;i++){
                 var el=document.createElement('span');
                 el.textContent=start+i*step;
