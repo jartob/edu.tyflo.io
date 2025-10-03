@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+
+<html lang="pl"><head><meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Zajęcia 56 – Simon z rotacją</title>
+<style>
+:root{--accent:#00E0FF;--rad:14px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button,input{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:800}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:1rem;color:#ddd;margin:4px 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
+.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
+.good{outline:3px solid #0f8}
+.bad{outline:3px solid #f44}
+kbd{border:2px solid #555;padding:2px 6px;border-radius:6px;background:#111}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.card{border:2px solid var(--accent);border-radius:14px;padding:12px;background:#000;display:flex;align-items:center;justify-content:center;font-size:2rem;cursor:pointer}
+.grid{display:grid;gap:10px}
+.target{font-weight:900}
+.note{color:#9ef}
+</style></head><body><button id="gen56">Generuj</button><div id="seq56"></div><main class="wrap">
+<h1>🧠 Zajęcia 56 – Simon z rotacją przycisków</h1><button id="speak56">🔈 Lektor</button>
+<section class="panel"><div class="row"><button class="primary" id="start">START</button><span class="small">Po każdej rundzie przyciski zmieniają położenie (adaptacja przestrzenna).</span></div></section>
+<section class="panel">
+<div class="four" id="wrap" style="grid-template-columns:repeat(2,1fr);gap:12px"></div>
+<div class="stats"><div class="stat"><b>Długość sekwencji:</b> <span id="len">–</span></div><div class="stat"><b>Poprawnie:</b> <span id="ok">0</span></div><div class="stat"><b>Błędy:</b> <span id="err">0</span></div></div>
+</section>
+<script>
+
+let voice=true; if(!('speechSynthesis' in window)) voice=false;
+function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
+
+let seq=[], input=0, playing=false, ok=0, err=0;
+const icons=['●','■','▲','★'];
+function makeButtons(){
+  const w=document.getElementById('wrap'); w.innerHTML=''; const order=[0,1,2,3].sort(()=>Math.random()-0.5);
+  order.forEach(i=>{ const b=document.createElement('button'); b.className='btn4'; b.textContent=icons[i]; b.dataset.i=i; w.appendChild(b); });
+  return [...w.querySelectorAll('.btn4')];
+}
+let btns=makeButtons();
+function flash(b){ b.classList.add('on'); setTimeout(()=>b.classList.remove('on'),300); }
+function play(){
+  playing=true; let i=0; say('Uwaga, sekwencja'); const t=setInterval(()=>{ const idx=seq[i]; const b=btns.find(x=>Number(x.dataset.i)===idx); flash(b); i++; if(i>=seq.length){ clearInterval(t); playing=false; input=0; say('Twoja kolej'); } },600);
+}
+function newRound(){ seq.push(Math.floor(Math.random()*4)); document.getElementById('len').textContent=seq.length; play(); }
+function start(){ seq=[Math.floor(Math.random()*4),Math.floor(Math.random()*4)]; ok=0; err=0; document.getElementById('ok').textContent='0'; document.getElementById('err').textContent='0'; btns=makeButtons(); document.getElementById('len').textContent=seq.length; play(); }
+document.addEventListener('click',e=>{ const b=e.target.closest('.btn4'); if(!b||playing) return; const i=Number(b.dataset.i); flash(b);
+  if(i===seq[input]){ input++; if(input===seq.length){ ok++; document.getElementById('ok').textContent=ok; btns=makeButtons(); newRound(); } } else { err++; document.getElementById('err').textContent=err; input=0; }
+});
+document.getElementById('start').onclick=start;
+</script>
+</main><script>
+    (function(){
+      function pickTaskText() {
+        var docTitle = document.title || "Zadanie 56";
+        // Try common selectors
+        var candidates = [];
+        var byIds = ['task','zadanie','instrukcja','instruction','opis','desc'];
+        byIds.forEach(function(id){ var el=document.getElementById(id); if(el) candidates.push(el.textContent.trim()); });
+        // By class
+        ['task','zadanie','instrukcja','instruction','opis','desc','note','hint'].forEach(function(c){
+          document.querySelectorAll('.'+c).forEach(function(el){ candidates.push(el.textContent.trim()); });
+        });
+        // Any paragraph with keywords
+        var keywords = /(Naciśnij|Wybierz|Znajdź|Kliknij|Ułóż|Przeciągnij|Połącz|Policz|Odczytaj|Wpisz|Klik|Zaznacz)/i;
+        Array.prototype.slice.call(document.querySelectorAll('p,li,div,span')).forEach(function(el){
+          var t=(el.textContent||'').trim();
+          if(t.length>=12 && t.length<=280 && keywords.test(t)) candidates.push(t);
+        });
+        // Fallback: first heading text
+        var h1 = document.querySelector('h1'); if(h1) candidates.push(h1.textContent.trim());
+        // Choose the longest sensible candidate, else title
+        candidates = candidates.filter(Boolean);
+        candidates.sort(function(a,b){ return b.length - a.length; });
+        var chosen = candidates[0] || docTitle;
+        // Clean excessive whitespace
+        chosen = chosen.replace(/\s+/g,' ').trim();
+        return chosen;
+      }
+      function initLektor(){
+        var btn = document.getElementById('speak56');
+        if(!btn) return;
+        btn.addEventListener('click', function(){
+          try{
+            window.speechSynthesis && window.speechSynthesis.cancel();
+            var text = pickTaskText();
+            var u = new SpeechSynthesisUtterance(text);
+            u.lang = 'pl-PL';
+            u.rate = 1; u.pitch = 1;
+            window.speechSynthesis ? speechSynthesis.speak(u) : alert('Lektor niedostępny.');
+          }catch(e){ alert('Lektor niedostępny.'); }
+        });
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initLektor); else initLektor();
+    })();
+    </script><script>
+        (function(){
+          var btn=document.getElementById('gen56'), out=document.getElementById('seq56'), len=document.getElementById('len56');
+          if(btn && out){
+            btn.addEventListener('click', function(){
+              var n=(len?parseInt(len.value):5)||5;
+              n=Math.max(3, Math.min(12,n));
+              var start=Math.floor(Math.random()*5)+1;
+              var step=Math.floor(Math.random()*4)+1;
+              out.innerHTML='';
+              for(var i=0;i<n;i++){
+                var el=document.createElement('span');
+                el.textContent=start+i*step;
+                el.style.border='2px solid var(--accent)';
+                el.style.borderRadius='8px';
+                el.style.padding='6px 10px';
+                el.style.margin='3px';
+                out.appendChild(el);
+              }
+            });
+          }
+        })();
+        </script></body></html>

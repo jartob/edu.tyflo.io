@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Karta 37 – wersja naprawiona</title>
+<style>
+  :root{--accent:#00E0FF;--bg:#000;--fg:#fff;--ok:#14f195;--bad:#ff4d4f}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .panel{border:2px solid var(--accent);border-radius:14px;background:#0e0e0e;padding:12px;margin:10px 0}
+  .btn{padding:10px 14px;border:2px solid var(--accent);background:#000;color:#fff;border-radius:12px;font-weight:800;cursor:pointer}
+  .btn:hover{filter:brightness(1.1)}
+  .counter{font-weight:900}
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .cell{aspect-ratio:1/1;border:2px dashed var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.3rem;user-select:none;cursor:pointer}
+  .ok-outline{outline:3px solid var(--ok)}
+  .bad-outline{outline:3px solid var(--bad)}
+  .instr{font-size:1.05rem;margin:6px 0 4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Karta 37 – kliknij poprawne pola</h1>
+  <p id="polecenie" class="instr">Zadanie: Kliknij wszystkie pola z liczbami większymi od 20. Użyj „🔄 Nowe zadanie”, aby wylosować nowy układ.</p>
+
+  <div class="row">
+    <button id="speak37" class="btn">🔈 Lektor (polecenie)</button>
+    <button id="new37" class="btn">🔄 Nowe zadanie</button>
+    <span class="counter">Poprawne: <span id="good37">0</span></span>
+    <span class="counter">Błędne: <span id="bad37">0</span></span>
+  </div>
+
+  <div id="board37" class="panel">
+    <div id="grid37" class="grid"></div>
+  </div>
+</div>
+<script>
+(function(){
+  // ====== Lektor ======
+  function pickTaskText(){
+    const cand=[]; 
+    ['polecenie','task','zadanie','instrukcja','instruction','opis','desc','polecenie'].forEach(id=>{
+      const el=document.getElementById(id); if(el) cand.push(el.textContent.trim());
+    });
+    document.querySelectorAll('.instr, .task, .zadanie, p').forEach(el=>{
+      const t=(el.textContent||'').trim(); if(t.length>=10 && t.length<=400) cand.push(t);
+    });
+    cand.push(document.title);
+    return (cand.find(Boolean) || 'Zadanie trzydzieste siódme').replace(/\s+/g,' ').trim();
+  }
+  function initSpeaker(){
+    const b=document.getElementById('speak37');
+    if(!b) return;
+    b.addEventListener('click', ()=>{
+      try{
+        speechSynthesis.cancel();
+        const u=new SpeechSynthesisUtterance(pickTaskText());
+        u.lang='pl-PL'; u.rate=1; u.pitch=1;
+        speechSynthesis.speak(u);
+      }catch(e){ alert('Lektor niedostępny.'); }
+    });
+  }
+
+  // ====== Liczenie poprawnych/błędnych ======
+  const goodEl=document.getElementById('good37');
+  const badEl=document.getElementById('bad37');
+  let good=0,bad=0;
+
+  function resetCounters(){ good=0; bad=0; goodEl.textContent=0; badEl.textContent=0; }
+
+  document.addEventListener('click', (e)=>{
+    const cell=e.target.closest('.cell');
+    if(!cell || cell.dataset.clicked) return;
+    const isCorrect = cell.hasAttribute('data-correct');
+    if(isCorrect){ good++; cell.classList.add('ok-outline'); }
+    else { bad++; cell.classList.add('bad-outline'); }
+    cell.dataset.clicked = '1';
+    goodEl.textContent=good; badEl.textContent=bad;
+  });
+
+  // ====== Losowanie planszy (1–36, poprawne > 20) ======
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+  function newTask(){
+    resetCounters();
+    const grid=document.getElementById('grid37');
+    grid.innerHTML='';
+    const arr=[...Array(36)].map((_,i)=>i+1);
+    shuffle(arr);
+    arr.forEach(n=>{
+      const d=document.createElement('div');
+      d.className='cell';
+      d.textContent=n;
+      if(n>20) d.setAttribute('data-correct','');
+      grid.appendChild(d);
+    });
+  }
+
+  document.getElementById('new37').addEventListener('click', newTask);
+  initSpeaker();
+  newTask();
+})();
+</script>
+</body>
+</html>

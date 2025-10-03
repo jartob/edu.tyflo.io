@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Karta 38 – sekwencja i odwzorowanie</title>
+<style>
+  :root{--accent:#00E0FF;--bg:#000;--fg:#fff;--ok:#14f195;--bad:#ff4d4f;--hl:yellow}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .panel{border:2px solid var(--accent);border-radius:14px;background:#0e0e0e;padding:12px;margin:10px 0}
+  .btn{padding:10px 14px;border:2px solid var(--accent);background:#000;color:#fff;border-radius:12px;font-weight:800;cursor:pointer}
+  .btn:hover{filter:brightness(1.1)}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .cell{aspect-ratio:1/1;border:2px dashed var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.6rem;user-select:none;cursor:pointer}
+  .highlight{
+    border:10px solid var(--hl) !important;
+    box-shadow:0 0 0 10px var(--hl), 0 0 40px 25px rgba(255,255,0,0.9) !important;
+    background:#000; color:#000;
+  }
+  .ok-outline{outline:4px solid var(--ok)}
+  .bad-outline{outline:4px solid var(--bad)}
+  .disabled{pointer-events:none; opacity:.8}
+  .instr{font-size:1.05rem;margin:6px 0 4px}
+  .note{color:#bcd}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Karta 38 – Zapamiętaj i odtwórz sekwencję</h1>
+  <p id="polecenie" class="instr">Lektor poda instrukcję, <b>potem pola zaświecą się w kolejności</b>. Następnie <b>kliknij te same pola w tej samej kolejności</b>.</p>
+
+  <div class="row">
+    <button id="speak38" class="btn">🔈 Lektor (polecenie + start sekwencji)</button>
+    <button id="replay" class="btn">🔁 Pokaż sekwencję</button>
+    <button id="new" class="btn">🔄 Nowa sekwencja</button>
+    <span style="font-weight:900">Postęp: <span id="progress">0/0</span></span>
+    <span style="font-weight:900">Błędy: <span id="errors">0</span></span>
+  </div>
+
+  <div id="board38" class="panel">
+    <div id="grid38" class="grid"></div>
+  </div>
+
+  <p class="note" id="statusNote">Kliknij „🔈 Lektor” lub „🔁 Pokaż sekwencję”, aby rozpocząć.</p>
+</div>
+<script>
+(function(){
+  // ====== Budowa planszy 4x4 ======
+  const grid = document.getElementById('grid38');
+  const progressEl=document.getElementById('progress');
+  const errorsEl=document.getElementById('errors');
+  const statusNote=document.getElementById('statusNote');
+  let cells = [];
+  for(let i=0;i<16;i++){
+    const d=document.createElement('div');
+    d.className='cell';
+    d.textContent=i+1;
+    grid.appendChild(d);
+    cells.push(d);
+  }
+
+  // ====== Logika sekwencji i odwzorowania ======
+  let seq=[], inputIdx=0, errors=0, phase='idle'; // phases: idle|showing|input|done
+
+  function setPhase(p){
+    phase=p;
+    if(p==='showing'){
+      grid.classList.add('disabled');
+      statusNote.innerHTML = "Obserwuj podświetlane pola. Za chwilę będziesz je klikać w tej samej kolejności.";
+    } else if(p==='input'){
+      grid.classList.remove('disabled');
+      statusNote.innerHTML = "Teraz <b>klikaj pola w tej samej kolejności</b>.";
+    } else if(p==='done'){
+      grid.classList.add('disabled');
+      statusNote.innerHTML = "Koniec próby. Użyj „🔄 Nowa sekwencja” lub „🔁 Pokaż sekwencję”, aby zagrać ponownie.";
+    } else {
+      grid.classList.remove('disabled');
+      statusNote.textContent = "Kliknij „🔈 Lektor” lub „🔁 Pokaż sekwencję”, aby rozpocząć.";
+    }
+  }
+
+  function newSeq(){
+    // 3–5 elementów, bez powtórzeń
+    const count = 3 + Math.floor(Math.random()*3); // 3..5
+    const pool = [...Array(16).keys()];
+    seq=[];
+    for(let i=0;i<count;i++){
+      const idx = Math.floor(Math.random()*pool.length);
+      seq.push(pool.splice(idx,1)[0]);
+    }
+    inputIdx=0; errors=0;
+    updateUI();
+  }
+
+  function updateUI(){
+    progressEl.textContent = inputIdx + "/" + seq.length;
+    errorsEl.textContent = errors;
+  }
+
+  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+  async function playSeq(){
+    setPhase('showing');
+    // krótkie opóźnienie startu
+    await sleep(350);
+    for(const idx of seq){
+      const c=cells[idx];
+      c.classList.add('highlight');
+      await sleep(700);
+      c.classList.remove('highlight');
+      await sleep(250);
+    }
+    inputIdx=0; errors=0; updateUI();
+    setPhase('input');
+  }
+
+  // ====== Obsługa kliknięć w trybie odwzorowania ======
+  grid.addEventListener('click', (e)=>{
+    if(phase!=='input') return;
+    const c=e.target.closest('.cell');
+    if(!c) return;
+    const idx=cells.indexOf(c);
+    const expected = seq[inputIdx];
+    if(idx===expected){
+      c.classList.add('ok-outline');
+      inputIdx++;
+      updateUI();
+      if(inputIdx===seq.length){
+        setPhase('done');
+      }
+    } else {
+      c.classList.add('bad-outline');
+      errors++;
+      updateUI();
+    }
+  });
+
+  // ====== Lektor: po zakończeniu odtwarza sekwencję ======
+  function pickTaskText(){
+    const el=document.getElementById('polecenie');
+    return (el?el.textContent:document.title).replace(/\s+/g,' ').trim();
+  }
+  function initSpeaker(){
+    const b=document.getElementById('speak38');
+    if(!b) return;
+    b.addEventListener('click', ()=>{
+      try{
+        window.speechSynthesis && window.speechSynthesis.cancel();
+        const u=new SpeechSynthesisUtterance(pickTaskText());
+        u.lang='pl-PL'; u.rate=1; u.pitch=1;
+        u.onend = ()=>{ playSeq(); };
+        speechSynthesis.speak(u);
+      }catch(e){ alert('Lektor niedostępny.'); }
+    });
+  }
+
+  // ====== Kontrolki ======
+  document.getElementById('replay').addEventListener('click', ()=>{ playSeq(); });
+  document.getElementById('new').addEventListener('click', ()=>{ newSeq(); playSeq(); });
+
+  // Init
+  newSeq();
+  initSpeaker();
+  setPhase('idle');
+})();
+</script>
+</body>
+</html>

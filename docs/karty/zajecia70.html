@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Zajęcia 70 – Zapamiętaj liczbę</title>
+<style>
+:root{--accent:#00E0FF;--rad:14px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0;overflow:hidden}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button,input{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:800}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:1rem;color:#ddd;margin:4px 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
+.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
+.big{font-size:3rem;font-weight:900;text-align:center}
+.good{outline:3px solid #0f8}
+.bad{outline:3px solid #f44}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{border:2px solid var(--accent);border-radius:14px;padding:16px;font-weight:900;background:#000;cursor:pointer}
+</style></head><body><main class="wrap">
+<h1>🔦 Zajęcia 70 – Zapamiętaj liczbę</h1><button id="speak70">🔈 Lektor</button>
+<section class="panel">
+<div class="controls">
+<div><label for="dur">Czas mignięcia</label><select id="dur"><option value="600">600 ms</option><option selected="" value="900">900 ms</option><option value="1200">1200 ms</option></select></div>
+<div class="row"><button class="primary" id="start">START</button><span class="small">Zobaczysz liczbę, potem siatkę. Kliknij zapamiętaną liczbę.</span></div>
+</div>
+</section>
+<section class="panel" style="text-align:center">
+<div class="big" id="stim">—</div>
+<div class="board hidden" id="grid" style="grid-template-columns:repeat(6,1fr)"></div>
+<div class="stats"><div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div><div class="stat"><b>Błędy:</b> <span id="err">0</span></div></div>
+</section>
+<script>
+
+let voice=true; if(!('speechSynthesis' in window)) voice=false;
+function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
+
+let target=0, ok=0, err=0;
+function trial(){
+  const s=document.getElementById('stim'); const g=document.getElementById('grid'); g.classList.add('hidden');
+  target = 10+Math.floor(Math.random()*90); s.textContent=String(target); s.classList.remove('hidden');
+  setTimeout(()=>{ s.classList.add('hidden'); build(); }, Number(document.getElementById('dur').value));
+}
+function build(){
+  const g=document.getElementById('grid'); g.innerHTML=''; const arr=[]; for(let i=0;i<18;i++) arr.push(10+Math.floor(Math.random()*90)); arr[Math.floor(Math.random()*18)] = target;
+  arr.forEach(v=>{ const b=document.createElement('button'); b.className='cell'; b.textContent=String(v); b.onclick=()=>pick(v,b); g.appendChild(b); });
+  g.classList.remove('hidden');
+}
+function pick(v,b){
+  if(v===target){ ok++; b.classList.add('good'); say('dobrze'); setTimeout(trial,600); } else { err++; b.classList.add('bad'); say('źle'); setTimeout(()=>b.classList.remove('bad'),350); }
+  document.getElementById('ok').textContent=ok; document.getElementById('err').textContent=err;
+}
+document.getElementById('start').onclick=()=>{ ok=0;err=0; document.getElementById('ok').textContent='0'; document.getElementById('err').textContent='0'; trial(); };
+</script>
+</main><script>
+    (function(){
+      function pickTaskText() {
+        var docTitle = document.title || "Zadanie 70";
+        // Try common selectors
+        var candidates = [];
+        var byIds = ['task','zadanie','instrukcja','instruction','opis','desc'];
+        byIds.forEach(function(id){ var el=document.getElementById(id); if(el) candidates.push(el.textContent.trim()); });
+        // By class
+        ['task','zadanie','instrukcja','instruction','opis','desc','note','hint'].forEach(function(c){
+          document.querySelectorAll('.'+c).forEach(function(el){ candidates.push(el.textContent.trim()); });
+        });
+        // Any paragraph with keywords
+        var keywords = /(Naciśnij|Wybierz|Znajdź|Kliknij|Ułóż|Przeciągnij|Połącz|Policz|Odczytaj|Wpisz|Klik|Zaznacz)/i;
+        Array.prototype.slice.call(document.querySelectorAll('p,li,div,span')).forEach(function(el){
+          var t=(el.textContent||'').trim();
+          if(t.length>=12 && t.length<=280 && keywords.test(t)) candidates.push(t);
+        });
+        // Fallback: first heading text
+        var h1 = document.querySelector('h1'); if(h1) candidates.push(h1.textContent.trim());
+        // Choose the longest sensible candidate, else title
+        candidates = candidates.filter(Boolean);
+        candidates.sort(function(a,b){ return b.length - a.length; });
+        var chosen = candidates[0] || docTitle;
+        // Clean excessive whitespace
+        chosen = chosen.replace(/\s+/g,' ').trim();
+        return chosen;
+      }
+      function initLektor(){
+        var btn = document.getElementById('speak70');
+        if(!btn) return;
+        btn.addEventListener('click', function(){
+          try{
+            window.speechSynthesis && window.speechSynthesis.cancel();
+            var text = pickTaskText();
+            var u = new SpeechSynthesisUtterance(text);
+            u.lang = 'pl-PL';
+            u.rate = 1; u.pitch = 1;
+            window.speechSynthesis ? speechSynthesis.speak(u) : alert('Lektor niedostępny.');
+          }catch(e){ alert('Lektor niedostępny.'); }
+        });
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initLektor); else initLektor();
+    })();
+    </script></body></html>

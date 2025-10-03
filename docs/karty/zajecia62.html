@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Zajęcia 62 – Kolejność rosnąca</title>
+<style>
+:root{--accent:#00E0FF;--rad:14px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button,input{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:800}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:1rem;color:#ddd;margin:4px 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
+.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
+.good{outline:3px solid #0f8}
+.bad{outline:3px solid #f44}
+kbd{border:2px solid #555;padding:2px 6px;border-radius:6px;background:#111}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.col2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.target{font-weight:900}
+.note{color:#9ef}
+.big{font-size:3rem}
+.hidden{display:none}
+</style></head><body><main class="wrap">
+<h1>🔢 Zajęcia 62 – Kolejność rosnąca</h1><button id="speak62">🔈 Lektor</button>
+<section class="panel">
+<div class="row"><button class="primary" id="start">START</button><span class="small">Klikaj liczby od najmniejszej do największej.</span></div>
+</section>
+<section class="panel">
+<div class="board" id="board" style="grid-template-columns:repeat(6,1fr)"></div>
+<div class="stats"><div class="stat"><b>Następna:</b> <span id="next">–</span></div><div class="stat"><b>Błędy:</b> <span id="err">0</span></div></div>
+</section>
+<script>
+
+let voice=true; if(!('speechSynthesis' in window)) voice=false;
+function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
+
+let seq=[], idx=0, err=0;
+function build(){
+  const g=document.getElementById('board'); g.innerHTML=''; seq=[]; for(let i=0;i<18;i++) seq.push(1+Math.floor(Math.random()*99));
+  const sorted=[...seq].sort((a,b)=>a-b); document.getElementById('next').textContent=sorted[0];
+  seq.forEach(v=>{ const b=document.createElement('button'); b.className='cell'; b.textContent=String(v); b.onclick=()=>pick(v,b,sorted); g.appendChild(b); });
+}
+function pick(v,b,sorted){
+  const need=sorted[idx]; if(v===need){ b.classList.add('good'); b.disabled=true; idx++; if(idx<sorted.length) document.getElementById('next').textContent=sorted[idx]; else say('Koniec'); }
+  else { err++; b.classList.add('bad'); setTimeout(()=>b.classList.remove('bad'),400); say('źle'); }
+  document.getElementById('err').textContent=err;
+}
+document.getElementById('start').onclick=()=>{ idx=0; err=0; document.getElementById('err').textContent='0'; build(); };
+</script>
+</main><script>
+    (function(){
+      function pickTaskText() {
+        var docTitle = document.title || "Zadanie 62";
+        // Try common selectors
+        var candidates = [];
+        var byIds = ['task','zadanie','instrukcja','instruction','opis','desc'];
+        byIds.forEach(function(id){ var el=document.getElementById(id); if(el) candidates.push(el.textContent.trim()); });
+        // By class
+        ['task','zadanie','instrukcja','instruction','opis','desc','note','hint'].forEach(function(c){
+          document.querySelectorAll('.'+c).forEach(function(el){ candidates.push(el.textContent.trim()); });
+        });
+        // Any paragraph with keywords
+        var keywords = /(Naciśnij|Wybierz|Znajdź|Kliknij|Ułóż|Przeciągnij|Połącz|Policz|Odczytaj|Wpisz|Klik|Zaznacz)/i;
+        Array.prototype.slice.call(document.querySelectorAll('p,li,div,span')).forEach(function(el){
+          var t=(el.textContent||'').trim();
+          if(t.length>=12 && t.length<=280 && keywords.test(t)) candidates.push(t);
+        });
+        // Fallback: first heading text
+        var h1 = document.querySelector('h1'); if(h1) candidates.push(h1.textContent.trim());
+        // Choose the longest sensible candidate, else title
+        candidates = candidates.filter(Boolean);
+        candidates.sort(function(a,b){ return b.length - a.length; });
+        var chosen = candidates[0] || docTitle;
+        // Clean excessive whitespace
+        chosen = chosen.replace(/\s+/g,' ').trim();
+        return chosen;
+      }
+      function initLektor(){
+        var btn = document.getElementById('speak62');
+        if(!btn) return;
+        btn.addEventListener('click', function(){
+          try{
+            window.speechSynthesis && window.speechSynthesis.cancel();
+            var text = pickTaskText();
+            var u = new SpeechSynthesisUtterance(text);
+            u.lang = 'pl-PL';
+            u.rate = 1; u.pitch = 1;
+            window.speechSynthesis ? speechSynthesis.speak(u) : alert('Lektor niedostępny.');
+          }catch(e){ alert('Lektor niedostępny.'); }
+        });
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initLektor); else initLektor();
+    })();
+    </script></body></html>

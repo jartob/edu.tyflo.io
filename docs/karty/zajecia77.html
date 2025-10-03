@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Zajęcia 77 – Porównywanie liczb</title>
+<style>
+:root{--accent:#00E0FF;--rad:14px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0;overflow:hidden}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button,input{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:800}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:1rem;color:#ddd;margin:4px 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
+.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
+.big{font-size:3rem;font-weight:900;text-align:center}
+.good{outline:3px solid #0f8}
+.bad{outline:3px solid #f44}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hidden{display:none}
+</style></head><body><main class="wrap">
+<h1>📏 Zajęcia 77 – Mniej, równe, więcej</h1><button id="speak77">🔈 Lektor (polecenie)</button>
+<section class="panel"><div class="row"><button class="primary" id="start">START</button><span class="small">Zdecyduj, czy liczba jest mniejsza, równa czy większa od wskazanej.</span></div></section>
+<section class="panel two">
+<div class="big" id="ref">—</div>
+<div class="big" id="val">—</div>
+<div class="row" style="grid-column:1 / -1; justify-content:center">
+<button class="primary" data-a="lt">&lt;</button>
+<button class="primary" data-a="eq">=</button>
+<button class="primary" data-a="gt">&gt;</button>
+</div>
+<div class="stats" style="grid-column:1 / -1"><div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div><div class="stat"><b>Błędy:</b> <span id="err">0</span></div></div>
+</section>
+<script>
+
+let voice=true; if(!('speechSynthesis' in window)) voice=false;
+function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
+
+let ref=0, val=0, ok=0, err=0;
+function trial(){
+  ref = 10+Math.floor(Math.random()*90); val = 10+Math.floor(Math.random()*90);
+  document.getElementById('ref').textContent=String(ref); document.getElementById('val').textContent=String(val);
+}
+document.querySelectorAll('button[data-a]').forEach(b=>b.onclick=()=>{ const a=b.dataset.a; let good=false; if(a==='lt') good = val<ref; if(a==='eq') good = val===ref; if(a==='gt') good = val>ref;
+  if(good){ ok++; say('dobrze'); } else { err++; say('źle'); } document.getElementById('ok').textContent=ok; document.getElementById('err').textContent=err; setTimeout(trial,500);
+});
+document.getElementById('start').onclick=()=>{ ok=0;err=0; document.getElementById('ok').textContent='0'; document.getElementById('err').textContent='0'; trial(); };
+</script>
+</main><script>
+    (function(){
+      function pickTaskText(){
+        var docTitle = document.title || "Zadanie 77";
+        var candidates = [];
+        var ids = ['task','zadanie','instrukcja','instruction','opis','desc','polecenie'];
+        ids.forEach(function(id){ var el=document.getElementById(id); if(el) candidates.push(el.textContent.trim()); });
+        var classes = ['task','zadanie','instrukcja','instruction','opis','desc','note','hint','polecenie'];
+        classes.forEach(function(c){ document.querySelectorAll('.'+c).forEach(function(el){ candidates.push(el.textContent.trim()); }); });
+        var kw = /(Naciśnij|Wybierz|Znajdź|Kliknij|Ułóż|Przeciągnij|Połącz|Policz|Odczytaj|Wpisz|Zaznacz|Zapamiętaj|Zobaczysz)/i;
+        Array.prototype.slice.call(document.querySelectorAll('p,li,div,span')).forEach(function(el){
+          var t=(el.textContent||'').trim();
+          if(t.length>=10 && t.length<=300 && kw.test(t)) candidates.push(t);
+        });
+        var h1 = document.querySelector('h1'); if(h1) candidates.push(h1.textContent.trim());
+        candidates = candidates.filter(Boolean);
+        candidates.sort(function(a,b){ return b.length - a.length; });
+        var chosen = candidates[0] || docTitle;
+        return chosen.replace(/\s+/g,' ').trim();
+      }
+      function init(){
+        var b=document.getElementById('speak77');
+        if(!b) return;
+        b.addEventListener('click', function(){
+          try{ speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(pickTaskText()); u.lang='pl-PL'; u.rate=1; u.pitch=1; speechSynthesis.speak(u); }
+          catch(e){ alert('Lektor niedostępny.'); }
+        });
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
+    })();
+    </script></body></html>

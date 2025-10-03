@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Karta 19 – wersja naprawiona</title>
+<style>
+  :root{--accent:#00E0FF;--bg:#000;--fg:#fff;--ok:#14f195;--bad:#ff4d4f}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .panel{border:2px solid var(--accent);border-radius:14px;background:#0e0e0e;padding:12px;margin:10px 0}
+  .btn{padding:10px 14px;border:2px solid var(--accent);background:#000;color:#fff;border-radius:12px;font-weight:800;cursor:pointer}
+  .btn:hover{filter:brightness(1.1)}
+  .counter{font-weight:900}
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .cell{aspect-ratio:1/1;border:2px dashed var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.3rem;user-select:none;cursor:pointer}
+  .ok-outline{outline:3px solid var(--ok)}
+  .bad-outline{outline:3px solid var(--bad)}
+  .note{color:#bcd}
+  .instr{font-size:1.05rem;margin:6px 0 4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Karta 19 – kliknij poprawne pola</h1>
+  <p id="polecenie" class="instr">Zadanie: Kliknij wszystkie pola z liczbami parzystymi. Użyj przycisku „🔄 Nowe zadanie”, aby wylosować nowy układ.</p>
+
+  <div class="row">
+    <button id="speak19" class="btn">🔈 Lektor (polecenie)</button>
+    <button id="new19" class="btn">🔄 Nowe zadanie</button>
+    <span class="counter">Poprawne: <span id="good19">0</span></span>
+    <span class="counter">Błędne: <span id="bad19">0</span></span>
+  </div>
+
+  <div id="board19" class="panel">
+    <div id="grid19" class="grid"></div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <button id="gen19" class="btn">🎲 Generuj sekwencję</button>
+      <input id="len19" type="number" min="3" max="12" value="5" class="btn" style="width:90px;text-align:center" />
+    </div>
+    <div id="seq19" style="margin-top:8px"></div>
+    <p class="note">Sekwencja pomocnicza – jeśli w Twoim oryginalnym ćwiczeniu występowała. Możesz zignorować ten moduł.</p>
+  </div>
+
+</div>
+<script>
+(function(){
+  // ====== Lektor ======
+  function pickTaskText(){
+    const cand=[]; 
+    ['polecenie','task','zadanie','instrukcja','instruction','opis','desc','polecenie'].forEach(id=>{
+      const el=document.getElementById(id); if(el) cand.push(el.textContent.trim());
+    });
+    document.querySelectorAll('.instr, .task, .zadanie, p').forEach(el=>{
+      const t=(el.textContent||'').trim(); if(t.length>=10 && t.length<=400) cand.push(t);
+    });
+    cand.push(document.title);
+    return (cand.find(Boolean) || 'Zadanie dziewiętnaste').replace(/\s+/g,' ').trim();
+  }
+  function initSpeaker(){
+    const b=document.getElementById('speak19');
+    if(!b) return;
+    b.addEventListener('click', ()=>{
+      try{
+        speechSynthesis.cancel();
+        const u=new SpeechSynthesisUtterance(pickTaskText());
+        u.lang='pl-PL'; u.rate=1; u.pitch=1;
+        speechSynthesis.speak(u);
+      }catch(e){ alert('Lektor niedostępny.'); }
+    });
+  }
+
+  // ====== Liczenie poprawnych/błędnych ======
+  const goodEl=document.getElementById('good19');
+  const badEl=document.getElementById('bad19');
+  let good=0,bad=0;
+
+  function resetCounters(){ good=0; bad=0; goodEl.textContent=0; badEl.textContent=0; }
+
+  document.addEventListener('click', (e)=>{
+    const cell=e.target.closest('.cell');
+    if(!cell || cell.dataset.clicked) return;
+    const isCorrect = cell.hasAttribute('data-correct');
+    if(isCorrect){ good++; cell.classList.add('ok-outline'); }
+    else { bad++; cell.classList.add('bad-outline'); }
+    cell.dataset.clicked = '1';
+    goodEl.textContent=good; badEl.textContent=bad;
+  });
+
+  // ====== Losowanie planszy „parzyste” (przykładowe uniwersalne zadanie) ======
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+  function newTask(){
+    resetCounters();
+    const grid=document.getElementById('grid19');
+    grid.innerHTML='';
+    // 6×6 = 36 pól, liczby 1–36
+    const arr=[...Array(36)].map((_,i)=>i+1);
+    shuffle(arr);
+    arr.forEach(n=>{
+      const d=document.createElement('div');
+      d.className='cell';
+      d.textContent=n;
+      if(n % 2 === 0) d.setAttribute('data-correct','');
+      grid.appendChild(d);
+    });
+  }
+
+  // ====== Sekwencja (opcjonalny moduł awaryjny) ======
+  function initSequence(){
+    const btn=document.getElementById('gen19'), out=document.getElementById('seq19'), len=document.getElementById('len19');
+    if(!btn || !out) return;
+    btn.addEventListener('click', ()=>{
+      out.innerHTML='';
+      const n=Math.max(3, Math.min(12, parseInt(len.value)||5));
+      const start=Math.floor(Math.random()*5)+1;
+      const step=Math.floor(Math.random()*4)+1;
+      for(let i=0;i<n;i++){
+        const el=document.createElement('span');
+        el.textContent=start+i*step;
+        el.style.border='2px solid var(--accent)';
+        el.style.borderRadius='8px';
+        el.style.padding='6px 10px';
+        el.style.margin='4px';
+        out.appendChild(el);
+      }
+    });
+  }
+
+  // Init
+  document.getElementById('new19').addEventListener('click', newTask);
+  initSpeaker();
+  initSequence();
+  newTask();
+})();
+</script>
+</body>
+</html>

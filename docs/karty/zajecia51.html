@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Zajęcia 51 – Pamięć wzrokowa</title>
+<style>
+:root{--accent:#00E0FF;--rad:14px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button,input{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:800}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:1rem;color:#ddd;margin:4px 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
+.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
+.good{outline:3px solid #0f8}
+.bad{outline:3px solid #f44}
+kbd{border:2px solid #555;padding:2px 6px;border-radius:6px;background:#111}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.card{border:2px solid var(--accent);border-radius:14px;padding:12px;background:#000;display:flex;align-items:center;justify-content:center;font-size:2rem;cursor:pointer}
+.grid{display:grid;gap:10px}
+.target{font-weight:900}
+.note{color:#9ef}
+</style></head><body><main class="wrap">
+<h1>👁️ Zajęcia 51 – Pamięć wzrokowa (krótka ekspozycja)</h1><button id="speak51">🔈 Lektor</button>
+<section class="panel">
+<div class="controls">
+<div><label for="dur">Czas ekspozycji</label><select id="dur"><option value="800">800 ms</option><option selected="" value="1200">1200 ms</option><option value="1500">1500 ms</option></select></div>
+<div class="row"><button class="primary" id="start">START</button><span class="small">Zapamiętaj układ 4 symboli. Po maskowaniu wskaż, czego brakowało.</span></div>
+</div>
+</section>
+<section class="panel">
+<div class="board" id="show"></div>
+<div class="board" id="mask" style="display:none"></div>
+<div class="row" id="choices" style="margin-top:10px"></div>
+<div class="stats"><div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div><div class="stat"><b>Błędy:</b> <span id="err">0</span></div></div>
+</section>
+<script>
+
+let voice=true; if(!('speechSynthesis' in window)) voice=false;
+function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
+
+const pool=['●','■','▲','★','◆','⬤','⬛','⬟']; let ok=0,err=0, target='●';
+function sample(){
+  const s=new Set(); while(s.size<4) s.add(pool[Math.floor(Math.random()*pool.length)]); return [...s];
+}
+function start(){
+  ok=ok||0; err=err||0; document.getElementById('ok').textContent=ok; document.getElementById('err').textContent=err;
+  const board=document.getElementById('show'); const mask=document.getElementById('mask'); const ch=document.getElementById('choices');
+  board.style.display='grid'; mask.style.display='none'; ch.innerHTML='';
+  const set=sample(); target=set[Math.floor(Math.random()*set.length)];
+  board.innerHTML=''; set.forEach(s=>{ const d=document.createElement('div'); d.className='cell'; d.textContent=s; board.appendChild(d); });
+  setTimeout(()=>{ board.style.display='none'; mask.style.display='grid'; mask.innerHTML=''; for(let i=0;i<4;i++){ const d=document.createElement('div'); d.className='cell'; d.textContent='?'; mask.appendChild(d); } 
+    const opts=[...set]; while(opts.length<6){ const r=pool[Math.floor(Math.random()*pool.length)]; if(!opts.includes(r)) opts.push(r); }
+    opts.sort(()=>Math.random()-0.5); opts.forEach(s=>{ const b=document.createElement('button'); b.className='primary'; b.textContent=s; b.onclick=()=>pick(s); ch.appendChild(b); });
+    say('Czego brakowało?'); }, Number(document.getElementById('dur').value));
+}
+function pick(s){ if(s===target){ ok++; say('dobrze'); } else { err++; say('błąd'); } document.getElementById('ok').textContent=ok; document.getElementById('err').textContent=err; setTimeout(start,600); }
+document.getElementById('start').onclick=start;
+</script>
+</main><script>
+    (function(){
+      function pickTaskText() {
+        var docTitle = document.title || "Zadanie 51";
+        // Try common selectors
+        var candidates = [];
+        var byIds = ['task','zadanie','instrukcja','instruction','opis','desc'];
+        byIds.forEach(function(id){ var el=document.getElementById(id); if(el) candidates.push(el.textContent.trim()); });
+        // By class
+        ['task','zadanie','instrukcja','instruction','opis','desc','note','hint'].forEach(function(c){
+          document.querySelectorAll('.'+c).forEach(function(el){ candidates.push(el.textContent.trim()); });
+        });
+        // Any paragraph with keywords
+        var keywords = /(Naciśnij|Wybierz|Znajdź|Kliknij|Ułóż|Przeciągnij|Połącz|Policz|Odczytaj|Wpisz|Klik|Zaznacz)/i;
+        Array.prototype.slice.call(document.querySelectorAll('p,li,div,span')).forEach(function(el){
+          var t=(el.textContent||'').trim();
+          if(t.length>=12 && t.length<=280 && keywords.test(t)) candidates.push(t);
+        });
+        // Fallback: first heading text
+        var h1 = document.querySelector('h1'); if(h1) candidates.push(h1.textContent.trim());
+        // Choose the longest sensible candidate, else title
+        candidates = candidates.filter(Boolean);
+        candidates.sort(function(a,b){ return b.length - a.length; });
+        var chosen = candidates[0] || docTitle;
+        // Clean excessive whitespace
+        chosen = chosen.replace(/\s+/g,' ').trim();
+        return chosen;
+      }
+      function initLektor(){
+        var btn = document.getElementById('speak51');
+        if(!btn) return;
+        btn.addEventListener('click', function(){
+          try{
+            window.speechSynthesis && window.speechSynthesis.cancel();
+            var text = pickTaskText();
+            var u = new SpeechSynthesisUtterance(text);
+            u.lang = 'pl-PL';
+            u.rate = 1; u.pitch = 1;
+            window.speechSynthesis ? speechSynthesis.speak(u) : alert('Lektor niedostępny.');
+          }catch(e){ alert('Lektor niedostępny.'); }
+        });
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initLektor); else initLektor();
+    })();
+    </script></body></html>

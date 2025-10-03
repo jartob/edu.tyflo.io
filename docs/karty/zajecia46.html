@@ -1,0 +1,56 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Zajęcia 46 – Pamięć sekwencji</title>
+<style>
+:root{--accent:#00E0FF;--rad:14px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:800}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:1rem;color:#ddd;margin:4px 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
+.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
+.good{outline:3px solid #0f8}
+.bad{outline:3px solid #f44}
+kbd{border:2px solid #555;padding:2px 6px;border-radius:6px;background:#111}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.color{width:88px;height:48px;border-radius:10px;border:2px solid var(--accent)}
+.target{width:110px;height:110px;border:3px solid var(--accent);border-radius:16px;margin:10px auto;display:flex;align-items:center;justify-content:center;font-size:2rem}
+.area{position:relative;height:280px;border:2px solid var(--accent);border-radius:14px;overflow:hidden;margin-top:10px}
+.mover{position:absolute;width:36px;height:36px;border-radius:50%;border:3px solid var(--accent);display:flex;align-items:center;justify-content:center;left:0;top:40%}
+.hot{position:absolute;border:3px dashed #0f8;border-radius:12px;width:120px;height:120px;right:20px;top:80px}
+.four{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
+.btn4{height:90px;border:2px solid var(--accent);border-radius:14px;font-size:1.6rem}
+.btn4.on{background:#062a2f}
+</style></head><body><main class="wrap">
+
+<h1>🧠 Zajęcia 46 – Pamięć sekwencji</h1>
+<section class="panel"><div class="row"><button class="primary" id="start">START</button><span class="small">Obserwuj zapaloną sekwencję, a następnie ją powtórz.</span></div></section>
+<section class="panel">
+  <div class="four">
+    <button class="btn4" data-i="0">●</button><button class="btn4" data-i="1">■</button><button class="btn4" data-i="2">▲</button><button class="btn4" data-i="3">★</button>
+  </div>
+  <div class="stats"><div class="stat"><b>Długość sekwencji:</b> <span id="len">3</span></div><div class="stat"><b>Postęp:</b> <span id="prog">0</span></div></div>
+</section>
+<script>
+
+let voice=true; if(!('speechSynthesis' in window)) voice=false;
+function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
+
+let seq=[], inputStep=0, playing=false; const btns=[...document.querySelectorAll('.btn4')];
+function flash(i){ btns[i].classList.add('on'); setTimeout(()=>btns[i].classList.remove('on'),300); }
+function play(){ playing=true; let i=0; const t=setInterval(()=>{ flash(seq[i]); i++; if(i>=seq.length){ clearInterval(t); playing=false; inputStep=0; say('Twoja kolej'); } },600); }
+function start(){ const len=3+Math.floor(Math.random()*3); seq=[]; for(let i=0;i<len;i++) seq.push(Math.floor(Math.random()*4)); document.getElementById('len').textContent=len; document.getElementById('prog').textContent='0'; play(); }
+btns.forEach(b=>b.addEventListener('click',()=>{ if(playing) return; const i=Number(b.dataset.i); flash(i); if(i===seq[inputStep]){ inputStep++; document.getElementById('prog').textContent=inputStep; if(inputStep===seq.length) say('brawo'); } else { say('błąd'); inputStep=0; } }));
+document.getElementById('start').onclick=start;
+</script>
+
+</main></body></html>

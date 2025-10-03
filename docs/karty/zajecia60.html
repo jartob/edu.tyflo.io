@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+
+<html lang="pl"><head><meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Zajęcia 60 – Dopasuj cień</title>
+<style>
+:root{--accent:#00E0FF;--rad:14px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button,input{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:800}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:1rem;color:#ddd;margin:4px 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
+.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
+.good{outline:3px solid #0f8}
+.bad{outline:3px solid #f44}
+kbd{border:2px solid #555;padding:2px 6px;border-radius:6px;background:#111}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.col2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.target{font-weight:900}
+.note{color:#9ef}
+.big{font-size:3rem}
+.hidden{display:none}
+</style><style>
+.symbol60 {
+  font-size: 5rem !important;
+  color: #fff !important;
+  margin: 20px;
+  padding: 28px;
+  border: 12px solid yellow !important; /* much thicker border */
+  border-radius: 18px !important;
+  text-shadow: 0 0 20px yellow, 0 0 35px yellow !important;
+  box-shadow: 0 0 0 16px yellow, 0 0 40px 25px yellow !important; /* much stronger outline + glow */
+  display:inline-block !important;
+}
+</style></head><body><main class="wrap">
+<h1>🖤 Zajęcia 60 – Dopasuj cień</h1><button id="speak60">🔈 Lektor</button>
+<section class="panel">
+<div class="row"><button class="primary" id="start">START</button><span class="small">Kliknij symbol, a potem jego cień po prawej.</span></div>
+</section>
+<section class="panel col2">
+<div class="board" id="left" style="grid-template-columns:repeat(3,1fr)"></div>
+<div class="board" id="right" style="grid-template-columns:repeat(3,1fr)"></div>
+<div class="stats"><div class="stat"><b>Pary:</b> <span id="pairs">0</span>/6</div><div class="stat"><b>Pomyłki:</b> <span id="err">0</span></div></div>
+</section>
+<script>
+
+let voice=true; if(!('speechSynthesis' in window)) voice=false;
+function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
+
+const syms=['●','■','▲','★','◆','⬟']; let leftSel=null, pairs=0, err=0;
+function build(){
+  const L=document.getElementById('left'), R=document.getElementById('right'); L.innerHTML=''; R.innerHTML='';
+  const left=[...syms].sort(()=>Math.random()-0.5).slice(0,6);
+  const right=[...left].sort(()=>Math.random()-0.5);
+  left.forEach(s=>{ const b=document.createElement('button'); b.className='cell'; b.textContent=s; b.onclick=()=>selLeft(b); L.appendChild(b); });
+  right.forEach(s=>{ const b=document.createElement('button'); b.className='cell'; b.textContent=s; b.style.color='#111'; b.style.borderColor='#444'; b.onclick=()=>selRight(b); R.appendChild(b); });
+}
+function selLeft(b){ document.querySelectorAll('#left .cell').forEach(x=>x.classList.remove('good')); leftSel=b; b.classList.add('good'); }
+function selRight(b){ if(!leftSel) return; if(b.textContent===leftSel.textContent){ pairs++; say('para'); b.classList.add('good'); leftSel.disabled=true; b.disabled=true; leftSel=null; } else { err++; say('spróbuj ponownie'); b.classList.add('bad'); setTimeout(()=>b.classList.remove('bad'),400); }
+  document.getElementById('pairs').textContent=pairs; document.getElementById('err').textContent=err;
+}
+document.getElementById('start').onclick=()=>{ pairs=0; err=0; document.getElementById('pairs').textContent='0'; document.getElementById('err').textContent='0'; build(); };
+</script>
+</main><script>
+    (function(){
+      function pickTaskText() {
+        var docTitle = document.title || "Zadanie 60";
+        // Try common selectors
+        var candidates = [];
+        var byIds = ['task','zadanie','instrukcja','instruction','opis','desc'];
+        byIds.forEach(function(id){ var el=document.getElementById(id); if(el) candidates.push(el.textContent.trim()); });
+        // By class
+        ['task','zadanie','instrukcja','instruction','opis','desc','note','hint'].forEach(function(c){
+          document.querySelectorAll('.'+c).forEach(function(el){ candidates.push(el.textContent.trim()); });
+        });
+        // Any paragraph with keywords
+        var keywords = /(Naciśnij|Wybierz|Znajdź|Kliknij|Ułóż|Przeciągnij|Połącz|Policz|Odczytaj|Wpisz|Klik|Zaznacz)/i;
+        Array.prototype.slice.call(document.querySelectorAll('p,li,div,span')).forEach(function(el){
+          var t=(el.textContent||'').trim();
+          if(t.length>=12 && t.length<=280 && keywords.test(t)) candidates.push(t);
+        });
+        // Fallback: first heading text
+        var h1 = document.querySelector('h1'); if(h1) candidates.push(h1.textContent.trim());
+        // Choose the longest sensible candidate, else title
+        candidates = candidates.filter(Boolean);
+        candidates.sort(function(a,b){ return b.length - a.length; });
+        var chosen = candidates[0] || docTitle;
+        // Clean excessive whitespace
+        chosen = chosen.replace(/\s+/g,' ').trim();
+        return chosen;
+      }
+      function initLektor(){
+        var btn = document.getElementById('speak60');
+        if(!btn) return;
+        btn.addEventListener('click', function(){
+          try{
+            window.speechSynthesis && window.speechSynthesis.cancel();
+            var text = pickTaskText();
+            var u = new SpeechSynthesisUtterance(text);
+            u.lang = 'pl-PL';
+            u.rate = 1; u.pitch = 1;
+            window.speechSynthesis ? speechSynthesis.speak(u) : alert('Lektor niedostępny.');
+          }catch(e){ alert('Lektor niedostępny.'); }
+        });
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initLektor); else initLektor();
+    })();
+    </script></body></html>

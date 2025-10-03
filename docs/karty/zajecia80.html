@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Zajęcia 80 – Pamięć obrazkowa</title>
+<style>
+:root{--accent:#00E0FF;--rad:14px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0;overflow:hidden}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button,input{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:800}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:1rem;color:#ddd;margin:4px 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
+.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
+.big{font-size:3rem;font-weight:900;text-align:center}
+.good{outline:3px solid #0f8}
+.bad{outline:3px solid #f44}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hidden{display:none}
+</style></head><body><main class="wrap">
+<h1>🧠 Zajęcia 80 – Pamięć obrazkowa: pozycje symbolu</h1><button id="speak80">🔈 Lektor (polecenie)</button>
+<section class="panel"><div class="row"><button class="primary" id="start">START</button><span class="small">Zobaczysz 4 pozycje w siatce 4×4 albo 5 pozycji w siatce 5×5. Zapamiętaj, a potem kliknij te pola.</span></div></section>
+<section class="panel">
+<div class="board" id="board" style="grid-template-columns:repeat(5,1fr)"></div>
+<div class="stats"><div class="stat"><b>Trafione:</b> <span id="hit">0</span></div><div class="stat"><b>Błędy:</b> <span id="err">0</span></div></div>
+</section>
+<script>
+
+let voice=true; if(!('speechSynthesis' in window)) voice=false;
+function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
+
+let picks=[], showCells=[], hit=0, err=0, awaiting=false;
+function build(){
+  const g=document.getElementById('board'); g.innerHTML=''; for(let i=0;i<25;i++){ const b=document.createElement('button'); b.className='cell'; b.textContent=''; b.onclick=()=>choose(i,b); g.appendChild(b);}
+}
+function show(){
+  const set=new Set(); while(set.size<6) set.add(Math.floor(Math.random()*25)); picks=[...set];
+  const cells=[...document.querySelectorAll('#board .cell')]; showCells=cells;
+  let i=0; function flash(){
+    if(i>=picks.length){ awaiting=true; say('Twoja kolej'); return; }
+    const idx=picks[i]; const c=cells[idx]; c.textContent='★'; c.classList.add('good'); setTimeout(()=>{ c.textContent=''; c.classList.remove('good'); i++; setTimeout(flash,200); },500);
+  } flash();
+}
+function choose(i,b){
+  if(!awaiting) return; if(picks.includes(i)){ hit++; b.classList.add('good'); b.textContent='★'; b.disabled=true; say('dobrze'); if(hit>=picks.length) awaiting=false; } else { err++; b.classList.add('bad'); setTimeout(()=>b.classList.remove('bad'),300); say('błąd'); }
+  document.getElementById('hit').textContent=hit; document.getElementById('err').textContent=err;
+}
+document.getElementById('start').onclick=()=>{ hit=0; err=0; document.getElementById('hit').textContent='0'; document.getElementById('err').textContent='0'; build(); show(); };
+</script>
+</main><script>
+    (function(){
+      function pickTaskText(){
+        var docTitle = document.title || "Zadanie 80";
+        var candidates = [];
+        var ids = ['task','zadanie','instrukcja','instruction','opis','desc','polecenie'];
+        ids.forEach(function(id){ var el=document.getElementById(id); if(el) candidates.push(el.textContent.trim()); });
+        var classes = ['task','zadanie','instrukcja','instruction','opis','desc','note','hint','polecenie'];
+        classes.forEach(function(c){ document.querySelectorAll('.'+c).forEach(function(el){ candidates.push(el.textContent.trim()); }); });
+        var kw = /(Naciśnij|Wybierz|Znajdź|Kliknij|Ułóż|Przeciągnij|Połącz|Policz|Odczytaj|Wpisz|Zaznacz|Zapamiętaj|Zobaczysz)/i;
+        Array.prototype.slice.call(document.querySelectorAll('p,li,div,span')).forEach(function(el){
+          var t=(el.textContent||'').trim();
+          if(t.length>=10 && t.length<=300 && kw.test(t)) candidates.push(t);
+        });
+        var h1 = document.querySelector('h1'); if(h1) candidates.push(h1.textContent.trim());
+        candidates = candidates.filter(Boolean);
+        candidates.sort(function(a,b){ return b.length - a.length; });
+        var chosen = candidates[0] || docTitle;
+        return chosen.replace(/\s+/g,' ').trim();
+      }
+      function init(){
+        var b=document.getElementById('speak80');
+        if(!b) return;
+        b.addEventListener('click', function(){
+          try{ speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(pickTaskText()); u.lang='pl-PL'; u.rate=1; u.pitch=1; speechSynthesis.speak(u); }
+          catch(e){ alert('Lektor niedostępny.'); }
+        });
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
+    })();
+    </script><div id="board80" style="display:grid;gap:8px;margin-top:10px"></div><script>
+    (function(){
+      function setup(){
+        var board=document.getElementById('board80'); if(!board) return;
+        var variant = Math.random()<0.5 ? {size:4,count:4} : {size:5,count:5};
+        board.innerHTML=''; board.style.gridTemplateColumns='repeat('+variant.size+', 1fr)';
+        var total=variant.size*variant.size;
+        var cells=[];
+        for(var i=0;i<total;i++){ var d=document.createElement('div'); d.className='cell80';
+          d.style.aspectRatio='1/1'; d.style.border='2px dashed #00E0FF'; d.style.borderRadius='10px';
+          d.style.display='flex'; d.style.alignItems='center'; d.style.justifyContent='center'; d.style.fontWeight='900';
+          board.appendChild(d); cells.push(d); }
+        var idxs=new Set(); while(idxs.size<variant.count){ idxs.add(Math.floor(Math.random()*total)); }
+        idxs.forEach(function(i){ cells[i].style.background='#00E0FF'; cells[i].style.color='#000'; setTimeout(function(){ cells[i].style.background=''; cells[i].style.color=''; }, 900); });
+        board.addEventListener('click', function(e){ var c=e.target.closest('.cell80'); if(!c) return;
+          var idx=cells.indexOf(c); if(idxs.has(idx)){ c.style.outline='3px solid #0f8'; idxs.delete(idx);} else { c.style.outline='3px solid #f55'; } }, {once:false});
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', setup); else setup();
+    })();
+    </script></body></html>

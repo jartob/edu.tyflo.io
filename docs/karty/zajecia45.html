@@ -1,0 +1,74 @@
+<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Zajęcia 45 – Śledzenie (łatwa wersja)</title>
+<style>
+:root{--accent:#00E0FF;--rad:14px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:800}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:1rem;color:#ddd;margin:4px 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.area{position:relative;height:320px;border:2px solid var(--accent);border-radius:14px;overflow:hidden;margin-top:10px;background:#000}
+.mover{position:absolute;width:44px;height:44px;border-radius:50%;border:3px solid var(--accent);display:flex;align-items:center;justify-content:center;left:0;top:40%;font-size:1.4rem;background:#071418}
+.hot{position:absolute;border:3px dashed #0f8;border-radius:12px;width:160px;height:160px;right:20px;top:70px;display:flex;align-items:center;justify-content:center;color:#0f8;font-weight:900}
+.hot.in{background:rgba(0,255,150,.08)}
+.hint{color:#9ef;font-weight:800;text-align:center;margin-top:6px}
+</style></head><body><main class="wrap">
+<h1>🎯 Zajęcia 45 – Śledzenie (łatwa wersja)</h1>
+<section class="panel">
+  <div class="controls">
+    <div>
+      <label for="lvl">Poziom trudności</label>
+      <select id="lvl">
+        <option value="easy" selected>Łatwy (wolno, duża strefa)</option>
+        <option value="mid">Średni</option>
+        <option value="hard">Trudny</option>
+      </select>
+    </div>
+    <div class="row">
+      <button class="primary" id="start">START</button>
+      <span class="small">Kliknij <b>gdy kropka jest w zielonej strefie</b>. Brak kary za pomyłki – ćwiczymy wyczucie momentu.</span>
+    </div>
+  </div>
+</section>
+<section class="panel">
+  <div class="area" id="area">
+    <div class="mover" id="mv">●</div>
+    <div class="hot" id="hot">STREFA</div>
+  </div>
+  <div class="hint" id="hint">Czekaj, aż kropka wejdzie do strefy – pole i obwód zamienią kolor.</div>
+  <div class="stats">
+    <div class="stat"><b>Próby (celne):</b> <span id="ok">0</span></div>
+    <div class="stat"><b>Nietrafione kliknięcia:</b> <span id="err">0</span></div>
+  </div>
+</section>
+<script>
+
+let voice=true; if(!('speechSynthesis' in window)) voice=false;
+function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
+
+const mv=document.getElementById('mv'), area=document.getElementById('area'), hot=document.getElementById('hot');
+let anim=null,x=0,dir=1,ok=0,err=0,speed=1.2,armed=false;
+function setLevel(l){ if(l==='easy'){ speed=1.2; hot.style.width='180px'; hot.style.height='180px'; } 
+  else if(l==='mid'){ speed=2.0; hot.style.width='140px'; hot.style.height='140px'; }
+  else { speed=3.2; hot.style.width='110px'; hot.style.height='110px'; } }
+function inside(){ const m=mv.getBoundingClientRect(), h=hot.getBoundingClientRect(); return (m.left>h.left && m.right<h.right && m.top>h.top && m.bottom<h.bottom); }
+function step(){ x+=speed*dir; const max=area.clientWidth-44; if(x<0){x=0;dir=1} if(x>max){x=max;dir=-1} mv.style.left=x+'px';
+  if(inside()){ hot.classList.add('in'); mv.style.borderColor='#0f8'; armed=true; } else { hot.classList.remove('in'); mv.style.borderColor='var(--accent)'; }
+  anim=requestAnimationFrame(step);
+}
+area.addEventListener('click',()=>{ if(inside() && armed){ ok++; say('dobrze'); armed=false; } else { err++; say('spróbuj ponownie'); }
+  document.getElementById('ok').textContent=ok; document.getElementById('err').textContent=err; });
+document.getElementById('start').onclick=()=>{ ok=0; err=0; x=0; dir=1; document.getElementById('ok').textContent='0'; document.getElementById('err').textContent='0';
+  setLevel(document.getElementById('lvl').value); if(anim) cancelAnimationFrame(anim); requestAnimationFrame(step); };
+document.getElementById('lvl').addEventListener('change',e=>setLevel(e.target.value));
+</script>
+</main></body></html>

@@ -1,8 +1,9 @@
 <!DOCTYPE html>
+
 <html lang="pl">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>Zajęcia 22 – Podzielność uwagi (zadanie podwójne)</title>
 <style>
   :root { --scale: 1.0; --accent:#F7B801; }
@@ -29,51 +30,45 @@
 </style>
 </head>
 <body>
-  <main class="wrap">
-    <h1>🧭 Zajęcia 22 – Podzielność uwagi (zadanie podwójne)</h1>
-    <p class="note">
+<main class="wrap">
+<h1>🧭 Zajęcia 22 – Podzielność uwagi (zadanie podwójne)</h1>
+<p class="note">
       Zadanie A (centrum): naciskaj <span class="key">J</span>, gdy pojawi się litera <b>T</b> lub <b>L</b>.<br/>
       Zadanie B (peryferia): naciskaj <span class="key">SPACJĘ</span>, gdy zapali się żółte kółko na brzegu ekranu.
     </p>
-
-    <section class="panel">
-      <div class="controls">
-        <div><label>Wielkość: <span id="fontVal">100%</span></label><input id="fontsize" type="range" min="80" max="220" step="5" value="100" /></div>
-        <div><label>Kontrast</label><select id="theme"><option value="dark">Ciemny</option><option value="light">Jasny</option></select></div>
-        <div><label>Lektor</label><select id="tts"><option value="on" selected>Włączony</option><option value="off">Wyłączony</option></select></div>
-
-        <div><label>Liczba bodźców</label><input id="rounds" type="number" min="30" max="300" value="120" /></div>
-        <div><label>Tempo (ms/zmiana)</label><input id="tempo" type="number" min="350" max="2000" step="50" value="800" /></div>
-        <div><label>Szansa litery docelowej (%)</label><input id="pTarget" type="number" min="5" max="60" step="5" value="25" /></div>
-        <div><label>Szansa bodźca peryferyjnego (%)</label><input id="pPeriph" type="number" min="5" max="40" step="5" value="20" /></div>
-
-        <div style="align-self:end"><button id="start" class="primary">START</button></div>
-      </div>
-
-      <div class="display" id="disp" aria-live="polite">
-        <div class="center"><div id="letter" class="letter">START</div></div>
-        <div id="p1" class="periph" style="left:12px; top:12px;"></div>
-        <div id="p2" class="periph" style="right:12px; top:12px;"></div>
-        <div id="p3" class="periph" style="left:12px; bottom:12px;"></div>
-        <div id="p4" class="periph" style="right:12px; bottom:12px;"></div>
-        <div class="legend" aria-hidden="true">
-          <span class="pill"><span class="key">J</span> Litera T/L</span>
-          <span class="pill"><span class="key">SPACJA</span> Żółte kółko</span>
-        </div>
-      </div>
-
-      <div class="stats">
-        <div class="stat"><b>Bodźce:</b> <span id="n">0 / 0</span></div>
-        <div class="stat"><b>Zad. A – trafienia:</b> <span id="aHit">0</span></div>
-        <div class="stat"><b>Zad. A – błędy:</b> <span id="aErr">0</span></div>
-        <div class="stat"><b>Zad. B – trafienia:</b> <span id="bHit">0</span></div>
-        <div class="stat"><b>Zad. B – błędy:</b> <span id="bErr">0</span></div>
-        <div class="stat"><b>RT (A) śr.:</b> <span id="aAvg">—</span></div>
-        <div class="stat"><b>RT (B) śr.:</b> <span id="bAvg">—</span></div>
-      </div>
-    </section>
-  </main>
-
+<section class="panel">
+<div class="controls">
+<div><label>Wielkość: <span id="fontVal">100%</span></label><input id="fontsize" max="220" min="80" step="5" type="range" value="100"/></div>
+<div><label>Kontrast</label><select id="theme"><option value="dark">Ciemny</option><option value="light">Jasny</option></select></div>
+<div><label>Lektor</label><select id="tts"><option selected="" value="on">Włączony</option><option value="off">Wyłączony</option></select></div>
+<div><label>Liczba bodźców</label><input id="rounds" max="300" min="30" type="number" value="120"/></div>
+<div><label>Tempo (ms/zmiana)</label><input id="tempo" max="2000" min="350" step="50" type="number" value="800"/></div>
+<div><label>Szansa litery docelowej (%)</label><input id="pTarget" max="60" min="5" step="5" type="number" value="25"/></div>
+<div><label>Szansa bodźca peryferyjnego (%)</label><input id="pPeriph" max="40" min="5" step="5" type="number" value="20"/></div>
+<div style="align-self:end"><button class="primary" id="start">START</button></div>
+</div>
+<div aria-live="polite" class="display" id="disp">
+<div class="center"><div class="letter" id="letter">START</div></div>
+<div class="periph" id="p1" style="left:12px; top:12px;"></div>
+<div class="periph" id="p2" style="right:12px; top:12px;"></div>
+<div class="periph" id="p3" style="left:12px; bottom:12px;"></div>
+<div class="periph" id="p4" style="right:12px; bottom:12px;"></div>
+<div aria-hidden="true" class="legend">
+<span class="pill"><span class="key">J</span> Litera T/L</span>
+<span class="pill"><span class="key">SPACJA</span> Żółte kółko</span>
+</div>
+</div>
+<div class="stats">
+<div class="stat"><b>Bodźce:</b> <span id="n">0 / 0</span></div>
+<div class="stat"><b>Zad. A – trafienia:</b> <span id="aHit">0</span></div>
+<div class="stat"><b>Zad. A – błędy:</b> <span id="aErr">0</span></div>
+<div class="stat"><b>Zad. B – trafienia:</b> <span id="bHit">0</span></div>
+<div class="stat"><b>Zad. B – błędy:</b> <span id="bErr">0</span></div>
+<div class="stat"><b>RT (A) śr.:</b> <span id="aAvg">—</span></div>
+<div class="stat"><b>RT (B) śr.:</b> <span id="bAvg">—</span></div>
+</div>
+</section>
+</main>
 <script>
 // UI helpers
 const $ = (s)=>document.querySelector(s);
@@ -168,5 +163,172 @@ window.addEventListener('keydown', (e)=>{
   if(e.code==='Space'){ e.preventDefault(); pressB(); }
 });
 </script>
-</body>
+<div class="injected-counters" style="position:fixed;left:12px;bottom:12px;z-index:9999;background:#070707;padding:8px;border-radius:10px;border:2px solid #222;color:#fff;font-weight:800">Poprawne: <span class="fix22-counter" id="injected_good22">0</span>   Błędne: <span class="fix22-counter" id="injected_bad22">0</span>   Kliknięcia: <span class="fix22-counter" id="injected_total22">0</span></div><script data-injected="fix22_v3">
+// injected fix22_v3: count TOTAL clicks, GOOD and ERRORS; reset on 'new task' click
+(function(){
+  // helper selectors
+  function $(sel){ return document.querySelector(sel); }
+  function $all(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+
+  // locate left/right elements heuristically (same logic as before)
+  var left = document.querySelector('[data-side="left"], .left, .box-left, .leftBox, .choice-left') || null;
+  var right = document.querySelector('[data-side="right"], .right, .box-right, .rightBox, .choice-right') || null;
+
+  if(!left || !right){
+    var clickables = $all('button, [role="button"], .box, .cell, .square, .option').filter(function(el){ return el.offsetWidth>40 && el.offsetHeight>30; });
+    if(clickables.length>=2){
+      left = left || clickables[0];
+      right = right || clickables[1];
+    } else {
+      var container = document.getElementById('choices') || document.getElementById('board') || document.getElementById('board22') || document.querySelector('.board');
+      if(container){
+        var nodes = Array.prototype.slice.call(container.querySelectorAll('div,button'));
+        if(nodes.length>=2){ left = left || nodes[0]; right = right || nodes[1]; }
+      }
+    }
+  }
+
+  // create fallback boxes if needed
+  var created = false;
+  if(!left || !right){
+    created = true;
+    var wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:fixed;right:12px;bottom:12px;display:flex;gap:8px;z-index:9999';
+    left = document.createElement('div'); left.textContent='Lewo (J)'; left.tabIndex=0;
+    right = document.createElement('div'); right.textContent='Prawo (Spacja)'; right.tabIndex=0;
+    [left,right].forEach(function(el){ el.className='injected-fallback-box'; el.style.cssText='background:#0f0f0f;color:#fff;padding:10px 14px;border-radius:10px;border:2px solid #00E0FF;cursor:pointer;font-weight:900'; });
+    wrapper.appendChild(left); wrapper.appendChild(right);
+    document.body.appendChild(wrapper);
+  }
+
+  left.setAttribute('data-injected-side','left');
+  right.setAttribute('data-injected-side','right');
+
+  // counters
+  var totalEl = document.getElementById('injected_total22');
+  var badEl = document.getElementById('injected_bad22');
+  var goodEl = document.getElementById('injected_good22');
+  if(!totalEl || !badEl || !goodEl){
+    var container = document.querySelector('.injected-counters');
+    if(!container){
+      container = document.createElement('div');
+      container.className='injected-counters';
+      container.style.cssText='position:fixed;left:12px;bottom:12px;z-index:9999;background:#070707;padding:8px;border-radius:10px;border:2px solid #222;color:#fff;font-weight:800';
+      document.body.appendChild(container);
+    }
+    container.innerHTML = 'Poprawne: <span id="injected_good22" class="fix22-counter">0</span> &nbsp; Błędne: <span id="injected_bad22" class="fix22-counter">0</span> &nbsp; Kliknięcia: <span id="injected_total22" class="fix22-counter">0</span>';
+    totalEl = document.getElementById('injected_total22');
+    badEl = document.getElementById('injected_bad22');
+    goodEl = document.getElementById('injected_good22');
+  }
+
+  var total=0, bad=0, good=0;
+
+  // central click handler: counts any click on interactive targets
+  function onInteractiveClick(target){
+    if(!target) return;
+    total++; totalEl.textContent = total;
+    // determine correctness: prefer explicit attributes/classes
+    var isCorrect = false;
+    try{
+      if(target.hasAttribute && target.hasAttribute('data-correct')) isCorrect = true;
+      if(target.classList && target.classList.contains('correct')) isCorrect = true;
+      if(target.getAttribute && target.getAttribute('aria-checked')==='true') isCorrect = true;
+      // if parent container has data-correct-side and target position indicates side, try to infer
+      var anc = target.closest('[data-correct-side]');
+      if(!isCorrect && anc){
+        var cs = anc.getAttribute('data-correct-side');
+        if(cs){
+          // if cs equals 'left' or 'right' set correctness if target is on that side
+          var rect = target.getBoundingClientRect();
+          var mid = window.innerWidth/2;
+          var side = (rect.left + rect.width/2) < mid ? 'left' : 'right';
+          if(side === cs.toLowerCase()) isCorrect = true;
+        }
+      }
+    }catch(e){ /* ignore */ }
+
+    if(isCorrect){
+      good++; goodEl.textContent = good;
+      try{ target.classList.add('fix22-ok'); setTimeout(function(){ target.classList.remove('fix22-ok'); },500); }catch(e){};
+    } else {
+      bad++; badEl.textContent = bad;
+      try{ target.classList.add('fix22-bad'); setTimeout(function(){ target.classList.remove('fix22-bad'); },700); }catch(e){};
+    }
+  }
+
+  // delegated listener to capture clicks on interactive elements
+  document.addEventListener('click', function(e){
+    var tgt = e.target.closest('button,[role="button"],.cell,.square,.option,.item,div[data-injected-side],.injected-fallback-box');
+    if(!tgt) return;
+    // ignore clicks on the counters container or the helper UI itself
+    if(tgt.closest('.injected-counters') || tgt.classList.contains('injected-counters')) return;
+    onInteractiveClick(tgt);
+  }, true);
+
+  // keyboard handlers mapping
+  document.addEventListener('keydown', function(e){
+    var active = document.activeElement;
+    if(active && (active.tagName==='INPUT' || active.tagName==='TEXTAREA' || active.isContentEditable)) return;
+    var k = e.key.toLowerCase();
+    if(k === 'j'){
+      e.preventDefault();
+      left.classList.add('fix22-flash'); setTimeout(function(){ left.classList.remove('fix22-flash'); },700);
+      onInteractiveClick(left);
+    } else if(e.code === 'Space' || k === ' '){
+      e.preventDefault();
+      right.classList.add('fix22-flash'); setTimeout(function(){ right.classList.remove('fix22-flash'); },700);
+      onInteractiveClick(right);
+    }
+  }, true);
+
+  // hook New Task: find original new button(s) and attach reset behavior
+  function hookNewTask(){
+    var btn = document.querySelector('#new22, button[data-action="new"], .new-task, button.replay, button.reset');
+    if(!btn){
+      // try to find a button with label 'Nowe' in the page
+      var allBtns = Array.prototype.slice.call(document.querySelectorAll('button'));
+      for(var i=0;i<allBtns.length;i++){
+        if(/nowe/i.test(allBtns[i].textContent)) { btn = allBtns[i]; break; }
+      }
+    }
+    if(!btn){
+      // if still not found, create a small new task button near counters
+      var container = document.querySelector('.injected-counters');
+      var b = document.createElement('button'); b.textContent='Nowe zadanie'; b.className='btn-injected';
+      b.style.cssText='margin-left:8px;padding:6px 8px;border-radius:8px;background:#111;border:2px solid #333;color:#fff;cursor:pointer';
+      container.appendChild(b);
+      btn = b;
+    }
+    btn.addEventListener('click', function(){
+      // attempt to trigger original new task if exists
+      var orig = document.querySelector('#new22, button[data-action="new"], .new-task');
+      if(orig && orig !== btn){
+        try{ orig.click(); }catch(e){}
+      }
+      // reset counters
+      total = 0; bad = 0; good = 0;
+      totalEl.textContent = '0'; badEl.textContent = '0'; goodEl.textContent = '0';
+      // flash a side as visual cue
+      var chosen = Math.random() < 0.5 ? left : right;
+      chosen.classList.add('fix22-flash');
+      setTimeout(function(){ chosen.classList.remove('fix22-flash'); }, 900);
+      // remove outlines from interactive elements to reset UI
+      try{
+        $all('.fix22-ok, .fix22-bad').forEach(function(el){ el.classList.remove('fix22-ok'); el.classList.remove('fix22-bad'); el.style.outline=''; });
+      }catch(e){}
+    });
+  }
+  hookNewTask();
+
+  // marker
+  var m = document.createElement('div'); m.id='injected_fix22_v3'; m.style.display='none'; document.body.appendChild(m);
+
+  // announce keys hint
+  var hint = document.createElement('div'); hint.setAttribute('data-injected','fix22'); hint.style.cssText='position:fixed;left:12px;top:12px;background:#070707;color:#fff;padding:6px 8px;border-radius:8px;border:2px solid #222;z-index:9999;font-weight:800';
+  hint.textContent = 'Klawisze: J (lewy), Spacja (prawy)';
+  document.body.appendChild(hint);
+
+})(); 
+</script></body>
 </html>

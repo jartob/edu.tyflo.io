@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Zajęcia 66 – Dobierz kształt do nazwy (ulepszone)</title>
+<style>
+:root{--accent:#00E0FF;--rad:16px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0 0 8px;color:var(--accent);font-weight:900}
+.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0;overflow:hidden}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
+label{display:block;margin-bottom:6px}
+select,button,input{padding:12px 14px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:14px;font-weight:800}
+button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
+.small{font-size:1rem;color:#ddd;margin:4px 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.board{display:grid;gap:10px}
+.board.names{grid-template-columns:repeat(2,minmax(140px,1fr))}
+.board.shapes{grid-template-columns:repeat(4,minmax(100px,1fr))}
+.cell{border:2px dashed var(--accent);border-radius:14px;aspect-ratio:2.2/1;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:900;cursor:pointer;background:#000}
+.shape{aspect-ratio:1/1;font-size:2.4rem}
+.good{outline:4px solid #0f8}
+.bad{outline:4px solid #f44}
+.selected{box-shadow:0 0 0 4px var(--accent) inset}
+kbd{border:2px solid #555;padding:2px 6px;border-radius:6px;background:#111}
+@media (max-width:860px){
+  .two{grid-template-columns:1fr}
+  .board.names{grid-template-columns:repeat(2,minmax(120px,1fr))}
+  .board.shapes{grid-template-columns:repeat(4,minmax(80px,1fr))}
+  .cell{font-size:1.4rem}
+  .shape{font-size:2rem}
+}
+</style></head><body><main class="wrap">
+<h1>🔗 Zajęcia 66 – Dobierz kształt do nazwy (ulepszone)</h1><button id="speak66">🔈 Lektor</button>
+<section class="panel">
+<div class="controls">
+<div>
+<label for="pairs">Liczba par</label>
+<select id="pairs">
+<option value="3">3 (łatwe)</option>
+<option selected="" value="4">4 (standard)</option>
+</select>
+</div>
+<div>
+<label for="assist">Wsparcie</label>
+<select id="assist">
+<option selected="" value="on">Podpowiedzi w TTS</option>
+<option value="off">Bez podpowiedzi</option>
+</select>
+</div>
+<div class="row">
+<button class="primary" id="start">START</button>
+<button class="primary" id="hint">💡 Podpowiedź</button>
+</div>
+</div>
+<p class="small">Najpierw kliknij <b>NAZWĘ</b>, a potem pasujący <b>KSZTAŁT</b>. Możesz też zacząć od kształtu – system dobierze właściwą nazwę.</p>
+</section>
+<section class="panel two">
+<div>
+<h3>NAZWY</h3>
+<div aria-label="Nazwy kształtów" class="board names" id="left"></div>
+</div>
+<div>
+<h3>KSZTAŁTY</h3>
+<div aria-label="Kształty" class="board shapes" id="right"></div>
+</div>
+<div class="stats" style="grid-column:1 / -1">
+<div class="stat"><b>Pary:</b> <span id="pairsCnt">0</span>/<span id="pairsMax">0</span></div>
+<div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+</div>
+</section>
+<script>
+
+let voice=true; if(!('speechSynthesis' in window)) voice=false;
+function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
+
+const MAP = {'KOŁKO':'●','KWADRAT':'■','TRÓJKĄT':'▲','GWIAZDKA':'★','ROMB':'◆','PIĘCIOKĄT':'⬟'};
+let leftSel=null, rightSel=null, err=0, done=0, need=4, assist=true;
+function speakName(n){ const m={'KOŁKO':'kółko','KWADRAT':'kwadrat','TRÓJKĄT':'trójkąt','GWIAZDKA':'gwiazdka','ROMB':'romb','PIĘCIOKĄT':'pięciokąt'}; say(m[n]||n); }
+function speakShape(s){ const m={'●':'kółko','■':'kwadrat','▲':'trójkąt','★':'gwiazdka','◆':'romb','⬟':'pięciokąt'}; say(m[s]||s); }
+function build(){
+  const L=document.getElementById('left'), R=document.getElementById('right'); L.innerHTML=''; R.innerHTML=''; err=0; done=0;
+  need = Number(document.getElementById('pairs').value); assist = (document.getElementById('assist').value==='on');
+  document.getElementById('pairsCnt').textContent='0'; document.getElementById('pairsMax').textContent=String(need);
+  const names = Object.keys(MAP).sort(()=>Math.random()-0.5).slice(0,need);
+  const shapes = names.map(n=>MAP[n]).concat(Object.values(MAP).filter(s=>!names.map(n=>MAP[n]).includes(s)).slice(0,4-need));
+  const mixR = [...names.map(n=>MAP[n])].sort(()=>Math.random()-0.5);
+  names.forEach(n=>{ const b=document.createElement('button'); b.className='cell'; b.textContent=n; b.onclick=()=>selLeft(b); b.setAttribute('aria-label', n); L.appendChild(b); });
+  mixR.forEach(s=>{ const b=document.createElement('button'); b.className='cell shape'; b.textContent=s; b.onclick=()=>selRight(b); b.setAttribute('aria-label', 'kształt '+s); R.appendChild(b); });
+  if(assist) say('Wybierz nazwę, potem pasujący kształt');
+}
+function clearSel(){ document.querySelectorAll('.selected').forEach(x=>x.classList.remove('selected')); leftSel=null; rightSel=null; }
+function selLeft(b){ clearSel(); leftSel=b; b.classList.add('selected'); if(assist) speakName(b.textContent); }
+function selRight(b){ if(!leftSel){ // pozwól odwrotnie: najpierw kształt
+    rightSel=b; b.classList.add('selected'); if(assist) speakShape(b.textContent); const nameBtn=[...document.querySelectorAll('#left .cell')].find(x=>MAP[x.textContent]===b.textContent); if(nameBtn) leftSel=nameBtn;
+  } else { rightSel=b; b.classList.add('selected'); }
+  checkPair();
+}
+function checkPair(){
+  if(!leftSel || !rightSel) return;
+  const needShape = MAP[leftSel.textContent];
+  if(rightSel.textContent===needShape){ // success
+    leftSel.classList.add('good'); rightSel.classList.add('good');
+    leftSel.disabled=true; rightSel.disabled=true; done++; document.getElementById('pairsCnt').textContent=String(done);
+    if(assist) say('para');
+    clearSel();
+  } else {
+    err++; document.getElementById('err').textContent=String(err);
+    leftSel.classList.add('bad'); rightSel.classList.add('bad');
+    if(assist) say('spróbuj ponownie');
+    setTimeout(()=>{ leftSel.classList.remove('bad'); rightSel.classList.remove('bad'); clearSel(); }, 350);
+  }
+}
+document.getElementById('hint').onclick=()=>{ if(leftSel){ if(assist) say('Szukaj: '+leftSel.textContent.toLowerCase()); const good=[...document.querySelectorAll('#right .shape')].find(b=>b.textContent===MAP[leftSel.textContent]); if(good){ good.classList.add('good'); setTimeout(()=>good.classList.remove('good'),500); } } else { if(assist) say('Najpierw wybierz nazwę'); } };
+document.getElementById('start').onclick=build;
+</script>
+</main><script>
+    (function(){
+      function pickTaskText() {
+        var docTitle = document.title || "Zadanie 66";
+        // Try common selectors
+        var candidates = [];
+        var byIds = ['task','zadanie','instrukcja','instruction','opis','desc'];
+        byIds.forEach(function(id){ var el=document.getElementById(id); if(el) candidates.push(el.textContent.trim()); });
+        // By class
+        ['task','zadanie','instrukcja','instruction','opis','desc','note','hint'].forEach(function(c){
+          document.querySelectorAll('.'+c).forEach(function(el){ candidates.push(el.textContent.trim()); });
+        });
+        // Any paragraph with keywords
+        var keywords = /(Naciśnij|Wybierz|Znajdź|Kliknij|Ułóż|Przeciągnij|Połącz|Policz|Odczytaj|Wpisz|Klik|Zaznacz)/i;
+        Array.prototype.slice.call(document.querySelectorAll('p,li,div,span')).forEach(function(el){
+          var t=(el.textContent||'').trim();
+          if(t.length>=12 && t.length<=280 && keywords.test(t)) candidates.push(t);
+        });
+        // Fallback: first heading text
+        var h1 = document.querySelector('h1'); if(h1) candidates.push(h1.textContent.trim());
+        // Choose the longest sensible candidate, else title
+        candidates = candidates.filter(Boolean);
+        candidates.sort(function(a,b){ return b.length - a.length; });
+        var chosen = candidates[0] || docTitle;
+        // Clean excessive whitespace
+        chosen = chosen.replace(/\s+/g,' ').trim();
+        return chosen;
+      }
+      function initLektor(){
+        var btn = document.getElementById('speak66');
+        if(!btn) return;
+        btn.addEventListener('click', function(){
+          try{
+            window.speechSynthesis && window.speechSynthesis.cancel();
+            var text = pickTaskText();
+            var u = new SpeechSynthesisUtterance(text);
+            u.lang = 'pl-PL';
+            u.rate = 1; u.pitch = 1;
+            window.speechSynthesis ? speechSynthesis.speak(u) : alert('Lektor niedostępny.');
+          }catch(e){ alert('Lektor niedostępny.'); }
+        });
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initLektor); else initLektor();
+    })();
+    </script></body></html>
