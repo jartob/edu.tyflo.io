@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Piracka przygoda – gra edukacyjna (z lektorem)</title>
+<style>
+  :root { --cell: 72px; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; padding: 16px; background:#fff; color:#111; }
+  h1 { font-size: 1.6rem; margin: 0 0 8px; }
+  .card { border: 2px solid #111; border-radius: 12px; padding: 12px; background:#f7f7f7; margin-bottom: 12px; }
+  .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  button, select, input[type="range"] { font-size: 1rem; padding: 10px 14px; border:2px solid #111; border-radius: 10px; background:#fff; cursor:pointer; }
+  button[disabled] { opacity:.6; cursor:not-allowed; }
+  .grid { display:grid; gap:4px; justify-content:start; align-items:start; margin-top:8px; }
+  .cell { width: var(--cell); height: var(--cell); display:grid; place-items:center; border:2px solid #111; border-radius:10px; background:#fff; font-size:1.2rem; cursor:pointer; }
+  .hdr { background:#eee; font-weight:700; }
+  .start { background:#fffbcc; }
+  .ok { background:#c8f7c5; }
+  .wrong { background:#ffd1d1; }
+  .small { font-size:.9rem; }
+  .spacer { flex:1; }
+  .pill { display:inline-block; padding:2px 8px; border:1px solid #111; border-radius:999px; margin:2px 4px 0 0; background:#fff; }
+  .muted { opacity:.85; }
+</style>
+</head>
+<body>
+  <h1>🏴‍☠️ Piracka przygoda <span class="small">(z lektorem)</span></h1>
+
+  <div class="card">
+    <div class="controls">
+      <strong>Cel:</strong> <span class="small">Dopłyń do wskazanych miejsc na mapie. Po każdym etapie rozwiąż mini‑quiz.</span>
+      <div class="spacer"></div>
+      <button id="chooseCharBtn">Wybierz postać</button>
+    </div>
+    <div class="small muted" id="charInfo">Postać: nie wybrano</div>
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <label for="size">Rozmiar siatki:</label>
+      <select id="size">
+        <option value="6">6×6</option>
+        <option value="8" selected>8×8</option>
+        <option value="10">10×10</option>
+      </select>
+      <label for="difficulty">Trudność:</label>
+      <select id="difficulty">
+        <option value="easy">Łatwa (3–4 kroki)</option>
+        <option value="medium" selected>Średnia (4–5 kroków)</option>
+        <option value="hard">Trudna (5–6 kroków)</option>
+      </select>
+      <button id="newStageBtn">Nowy etap</button>
+      <button id="revealBtn">Pokaż cel</button>
+      <button id="resetBtn">Wyczyść planszę</button>
+      <div class="spacer"></div>
+      <button id="toggleTTS" aria-pressed="false">🔈 Lektor: wyłączony</button>
+      <button id="reRead" disabled>🔁 Przeczytaj ponownie</button>
+      <label for="rate" class="small">Szybkość</label><input id="rate" type="range" min="0.6" max="1.4" step="0.1" value="1">
+      <label for="volume" class="small">Głośność</label><input id="volume" type="range" min="0" max="1" step="0.1" value="1">
+    </div>
+    <div class="route small" id="routeBar" aria-live="polite"></div>
+    <div id="task" aria-live="polite">Wybierz postać i kliknij „Nowy etap”.</div>
+    <div id="feedback" class="small" aria-live="assertive"></div>
+  </div>
+
+  <div id="grid" class="grid card" role="grid" aria-label="Mapa morska"></div>
+
+  <div class="card" id="quizBox" hidden>
+    <div><strong>Mini‑quiz:</strong> <span id="quizQuestion"></span></div>
+    <div id="quizOptions" class="controls" style="margin-top:8px;"></div>
+    <div id="quizFeedback" class="small"></div>
+  </div>
+
+<script>
+(function(){
+  // Elements
+  const gridEl = document.getElementById('grid');
+  const taskEl = document.getElementById('task');
+  const feedbackEl = document.getElementById('feedback');
+  const sizeEl = document.getElementById('size');
+  const difficultyEl = document.getElementById('difficulty');
+  const newStageBtn = document.getElementById('newStageBtn');
+  const revealBtn = document.getElementById('revealBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const routeBar = document.getElementById('routeBar');
+
+  const toggleTTS = document.getElementById('toggleTTS');
+  const reReadBtn = document.getElementById('reRead');
+  const rateEl = document.getElementById('rate');
+  const volumeEl = document.getElementById('volume');
+
+  const quizBox = document.getElementById('quizBox');
+  const quizQuestion = document.getElementById('quizQuestion');
+  const quizOptions = document.getElementById('quizOptions');
+  const quizFeedback = document.getElementById('quizFeedback');
+
+  // Characters (simplified choose via prompt)
+  let character = null;
+
+  // State
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const successIcon = "💰";
+  const places = [
+    {key:"statek", label:"Statek", icon:"⛵"},
+    {key:"wyspa",  label:"Wyspa",  icon:"🏝️"},
+    {key:"skrzynia",label:"Skarb", icon:"🧰"},
+    {key:"latarnia",label:"Latarnia", icon:"🗼"}
+  ];
+  const quizBank = {
+    statek: [
+      {q:"Co kieruje statkiem?", opts:["Kompas","Toster","Hulajnoga"], correct:0},
+      {q:"Kto dowodzi na statku?", opts:["Kapitan","Sąsiad","Piekarz"], correct:0}
+    ],
+    wyspa: [
+      {q:"Jaki znak oznacza skarb na mapie?", opts:["X","Y","?"], correct:0},
+      {q:"Co spotkasz na tropikalnej wyspie?", opts:["Lód","Palmy","Sanie"], correct:1}
+    ],
+    skrzynia: [
+      {q:"Czym otwierasz skrzynię?", opts:["Kluczem","Piórkiem","Słomką"], correct:0},
+      {q:"Co bywa w skrzyni?", opts:["Klejnoty","Ziemniaki","Poduszki"], correct:0}
+    ],
+    latarnia: [
+      {q:"Po co świeci latarnia morska?", opts:["By wskazywać drogę statkom","By piec ciasto","By suszyć pranie"], correct:0},
+      {q:"Gdzie stoi latarnia?", opts:["Przy brzegu morza","Na pustyni","Na dachu auta"], correct:0}
+    ]
+  };
+
+  let route = [];
+  let visited = new Set();
+  let currentTarget = null;
+  let start = null;
+  let N = parseInt(sizeEl.value,10);
+  let ttsEnabled = false;
+
+  // TTS
+  function speak(text){
+    if(!ttsEnabled || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'pl-PL';
+    u.rate = parseFloat(rateEl.value || 1);
+    u.volume = parseFloat(volumeEl.value || 1);
+    window.speechSynthesis.speak(u);
+  }
+  function updateTTSToggle(){
+    toggleTTS.setAttribute('aria-pressed', String(ttsEnabled));
+    toggleTTS.textContent = ttsEnabled ? '🔊 Lektor: włączony' : '🔈 Lektor: wyłączony';
+    reReadBtn.disabled = !ttsEnabled;
+  }
+
+  // Grid
+  function buildGrid(n){
+    N = n;
+    gridEl.style.gridTemplateColumns = 'repeat(' + (N+1) + ', auto)';
+    gridEl.innerHTML = "";
+    const corner = document.createElement('div');
+    corner.className = 'cell hdr'; corner.setAttribute('aria-hidden','true'); gridEl.appendChild(corner);
+    for(let c=0;c<N;c++){ const h=document.createElement('div'); h.className='cell hdr'; h.textContent=(c+1); gridEl.appendChild(h); }
+    for(let r=0;r<N;r++){
+      const hr=document.createElement('div'); hr.className='cell hdr'; hr.textContent=letters[r]; gridEl.appendChild(hr);
+      for(let c=0;c<N;c++){
+        const cell=document.createElement('button'); cell.className='cell'; cell.dataset.r=r; cell.dataset.c=c;
+        cell.setAttribute('aria-label', 'Pole '+letters[r]+(c+1));
+        cell.addEventListener('click', onPick);
+        gridEl.appendChild(cell);
+      }
+    }
+  }
+  function findCell(r,c){ return gridEl.querySelector('.cell[data-r="'+r+'"][data-c="'+c+'"]'); }
+  function clearBoard(){
+    Array.from(gridEl.querySelectorAll('.cell')).forEach(el=>{
+      el.classList.remove('start','ok','wrong');
+      if(el.hasAttribute('data-r')) el.textContent = "";
+    });
+    feedbackEl.textContent = "";
+    taskEl.textContent = "Kliknij „Nowy etap”, aby rozpocząć.";
+    start=null; currentTarget=null;
+  }
+
+  // Helpers
+  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function shuffle(arr){ return arr.map(x=>[Math.random(),x]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]); }
+  function stepsByDiff(){
+    const d = difficultyEl.value;
+    if(d==='easy') return randInt(3,4);
+    if(d==='hard') return randInt(5,6);
+    return randInt(4,5);
+  }
+  function safeSequence(pos){
+    const seq = [];
+    let cur = {r:pos.r, c:pos.c};
+    const S = stepsByDiff();
+    for(let i=0;i<S;i++){
+      const dirs=[{dr:-1,dc:0,name:'w górę'},{dr:1,dc:0,name:'w dół'},{dr:0,dc:-1,name:'w lewo'},{dr:0,dc:1,name:'w prawo'}];
+      const len = (N>=8) ? randInt(1,3) : randInt(1,2);
+      let chosen=null;
+      for(const d of shuffle(dirs)){
+        const nr=cur.r+d.dr*len, nc=cur.c+d.dc*len;
+        if(nr>=0&&nr<N&&nc>=0&&nc<N){ chosen={dr:d.dr,dc:d.dc,len,name:d.name}; break; }
+      }
+      if(!chosen) chosen={dr:0,dc:1,len:1,name:'w prawo'};
+      seq.push(chosen);
+      cur={r:cur.r+chosen.dr*chosen.len, c:cur.c+chosen.dc*chosen.len};
+    }
+    return {seq, end:cur};
+  }
+
+  // Route
+  function drawRoute(){
+    route = shuffle(places.slice());
+    visited = new Set();
+    routeBar.innerHTML = route.map(p=>'<span class="pill">'+p.icon+' '+p.label+'</span>').join('');
+  }
+
+  function prepareQuiz(placeKey){
+    quizBox.hidden = false;
+    const bank = quizBank[placeKey];
+    const idxs = [...Array(bank.length).keys()].sort(()=>Math.random()-0.5).slice(0,2);
+    let currentIdx = 0;
+    function renderQuestion(){
+      const item = bank[idxs[currentIdx]];
+      quizQuestion.textContent = item.q;
+      quizOptions.innerHTML = "";
+      quizFeedback.textContent = "";
+      item.opts.forEach((op, idx)=>{
+        const btn = document.createElement('button');
+        btn.textContent = op;
+        btn.addEventListener('click', ()=>{
+          if(idx === item.correct){
+            quizFeedback.textContent = "✅ Dobrze!";
+            speak("Dobrze!");
+            currentIdx++;
+            if(currentIdx<idxs.length){
+              setTimeout(renderQuestion, 400);
+            } else {
+              quizFeedback.textContent = "🌟 Zadanie zaliczone! Kliknij „Nowy etap”.";
+              speak("Zadanie zaliczone! Kliknij Nowy etap.");
+            }
+          } else {
+            quizFeedback.textContent = "❌ Spróbuj jeszcze raz.";
+            speak("Spróbuj jeszcze raz.");
+          }
+        });
+        quizOptions.appendChild(btn);
+      });
+    }
+    renderQuestion();
+  }
+
+  // Stage logic
+  function newStage(){
+    if(!character){
+      character = prompt("Wybierz postać: wpisz 'chlopiec' lub 'dziewczynka'","chlopiec");
+      const info = character==='dziewczynka' ? 'Dziewczynka 👧' : 'Chłopiec 👦';
+      document.getElementById('charInfo').textContent = 'Postać: ' + info;
+    }
+    clearBoard();
+    quizBox.hidden = true; quizQuestion.textContent=""; quizOptions.innerHTML=""; quizFeedback.textContent="";
+    if(route.length===0) drawRoute();
+
+    const next = route[ (Array.from(visited).length) % route.length ];
+    start = { r: randInt(0,N-1), c: randInt(0,N-1) };
+    const startBtn = findCell(start.r, start.c);
+    startBtn.classList.add('start');
+    startBtn.textContent = character==='dziewczynka'?'👧':'👦';
+
+    const {seq, end} = safeSequence(start);
+    currentTarget = end;
+    const lettersArr = letters;
+    const startLabel = lettersArr[start.r] + (start.c+1);
+    const parts = seq.map(m => (m.len===1 ? '1 pole '+m.name : (m.len+' pola '+m.name)));
+    const text = 'Cel: '+next.label+' '+next.icon+'. Start: '+startLabel+'. Płyń: '+parts.join(', ')+'. Które to pole?';
+    taskEl.textContent = text;
+    if(ttsEnabled) speak(text);
+
+    revealBtn.onclick = ()=>{
+      const cell = findCell(currentTarget.r, currentTarget.c);
+      if(cell){ cell.classList.add('ok'); cell.textContent=successIcon; }
+    };
+  }
+
+  function onPick(){
+    if(!currentTarget) return;
+    const r = parseInt(this.dataset.r,10);
+    const c = parseInt(this.dataset.c,10);
+    gridEl.querySelectorAll('.wrong,.ok').forEach(el=>{
+      if(!el.classList.contains('start')){ el.classList.remove('wrong','ok'); if(el.hasAttribute('data-r')) el.textContent=""; }
+    });
+    if(r===currentTarget.r && c===currentTarget.c){
+      this.classList.add('ok');
+      this.textContent = successIcon;
+      feedbackEl.textContent = "Brawo! Dopłynąłeś do celu. Otwieram mini‑quiz…";
+      speak("Brawo! Dopłynąłeś do celu.");
+      const idx = (Array.from(visited).length) % places.length;
+      const next = places[idx];
+      prepareQuiz(next.key);
+      visited.add(next.key);
+    } else {
+      this.classList.add('wrong');
+      this.textContent = '×';
+      feedbackEl.textContent = "To nie to pole. Spróbuj ponownie.";
+      speak("To nie to pole. Spróbuj ponownie.");
+    }
+  }
+
+  // Events
+  function buildAndReset(){ buildGrid(parseInt(sizeEl.value,10)); clearBoard(); }
+  sizeEl.addEventListener('change', buildAndReset);
+  difficultyEl.addEventListener('change', ()=>{});
+  newStageBtn.addEventListener('click', newStage);
+  resetBtn.addEventListener('click', clearBoard);
+  toggleTTS.addEventListener('click', ()=>{ ttsEnabled=!ttsEnabled; updateTTSToggle(); if(ttsEnabled && taskEl.textContent) speak(taskEl.textContent); });
+  reReadBtn.addEventListener('click', ()=>{ if(ttsEnabled && taskEl.textContent) speak(taskEl.textContent); });
+  updateTTSToggle();
+
+  // init
+  buildGrid(N);
+  routeBar.textContent = "Trasa: (wylosuje się po pierwszym etapie)";
+})();
+</script>
+</body>
+</html>

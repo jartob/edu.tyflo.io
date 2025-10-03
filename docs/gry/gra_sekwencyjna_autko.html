@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>🚗 Autko dojeżdża do mety – tryb sekwencyjny (z lektorem)</title>
+<style>
+  :root { --cell: 80px; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; padding: 16px; }
+  .controls { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0 16px; }
+  select, button, input[type="range"] { font-size:1rem; padding:10px 14px; border:2px solid #111; border-radius:8px; background:#fff; cursor:pointer; }
+  .panel { border:2px solid #111; border-radius:12px; padding:12px; margin-bottom:16px; background:#f7f7f7; }
+  .grid { display:grid; gap:4px; justify-content:start; align-items:start; margin-top:12px; }
+  .cell { width: var(--cell); height: var(--cell); display:grid; place-items:center; border:2px solid #111; border-radius:10px; font-size:1.5rem; background:#fff; cursor:pointer; }
+  .start { background:#fffbcc; } .current { background:#dff1ff; } .step-ok { background:#c8f7c5; } .wrong { background:#ffd1d1; }
+  .small { font-size:.9rem; }
+</style></head><body>
+<h1>🚗 Autko dojeżdża do mety – tryb sekwencyjny <span class="small">(z lektorem)</span></h1>
+<div class="panel">
+  <div class="controls">
+    <label for="size">Siatka:</label><select id="size"><option value="3">3×3</option><option value="4" selected>4×4</option><option value="5">5×5</option><option value="6">6×6</option></select>
+    <label for="steps">Kroki:</label><select id="steps"><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+    <button id="newTaskBtn">Nowe zadanie</button><button id="resetBtn">Wyczyść</button>
+  </div>
+  <div class="controls">
+    <button id="toggleTTS" aria-pressed="false">🔈 Lektor: wyłączony</button>
+    <button id="reRead" disabled>🔁 Przeczytaj ponownie</button>
+    <label for="rate" class="small">Szybkość:</label><input id="rate" type="range" min="0.6" max="1.4" step="0.1" value="1">
+    <label for="volume" class="small">Głośność:</label><input id="volume" type="range" min="0" max="1" step="0.1" value="1">
+  </div>
+  <div id="task" class="small" aria-live="polite">Kliknij „Nowe zadanie”, aby rozpocząć.</div>
+  <div id="stepInfo" class="small"></div>
+  <div id="feedback" class="small" aria-live="assertive"></div>
+</div>
+<div id="grid" class="grid" role="grid"></div>
+<script>
+(function(){"use strict";
+  const gridEl=document.getElementById('grid'),taskEl=document.getElementById('task'),feedbackEl=document.getElementById('feedback'),stepInfoEl=document.getElementById('stepInfo');
+  const sizeEl=document.getElementById('size'),stepsEl=document.getElementById('steps'),newTaskBtn=document.getElementById('newTaskBtn'),resetBtn=document.getElementById('resetBtn');
+  const toggleTTS=document.getElementById('toggleTTS'),reReadBtn=document.getElementById('reRead'),rateEl=document.getElementById('rate'),volumeEl=document.getElementById('volume');
+  const letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""); const theme={ start:"🚗", ok:"🏁" };
+  let N=parseInt(sizeEl.value,10),start=null,current=null,sequence=[],stepIndex=0,ttsEnabled=false;
+  function speak(t){ if(!ttsEnabled||!('speechSynthesis'in window))return; window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; u.rate=parseFloat(rateEl.value||1); u.volume=parseFloat(volumeEl.value||1); window.speechSynthesis.speak(u);}
+  function updateTTSToggle(){ toggleTTS.setAttribute('aria-pressed',String(ttsEnabled)); toggleTTS.textContent = ttsEnabled?'🔊 Lektor: włączony':'🔈 Lektor: wyłączony'; reReadBtn.disabled=!ttsEnabled; }
+  function buildGrid(n){ N=n; gridEl.style.gridTemplateColumns='repeat('+(N+1)+',auto)'; gridEl.innerHTML=""; const tl=document.createElement('div'); tl.className='cell'; tl.setAttribute('aria-hidden','true'); gridEl.appendChild(tl);
+    for(let c=0;c<N;c++){ const hd=document.createElement('div'); hd.className='cell'; hd.textContent=(c+1); hd.style.fontWeight='700'; hd.style.background='#eee'; gridEl.appendChild(hd);}
+    for(let r=0;r<N;r++){ const rh=document.createElement('div'); rh.className='cell'; rh.textContent=letters[r]; rh.style.fontWeight='700'; rh.style.background='#eee'; gridEl.appendChild(rh);
+      for(let c=0;c<N;c++){ const cell=document.createElement('button'); cell.className='cell'; cell.dataset.r=r; cell.dataset.c=c; cell.addEventListener('click',onPick); gridEl.appendChild(cell); } }
+  }
+  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function safeMoveFrom(pos){ const dirs=[{dr:-1,dc:0,name:'w górę'},{dr:1,dc:0,name:'w dół'},{dr:0,dc:-1,name:'w lewo'},{dr:0,dc:1,name:'w prawo'}]; const len=(N>=5)?randInt(1,3):randInt(1,2);
+    for(let j=dirs.length-1;j>0;j--){ const k=Math.floor(Math.random()*(j+1)); [dirs[j],dirs[k]]=[dirs[k],dirs[j]]; }
+    for(const d of dirs){ const nr=pos.r+d.dr*len, nc=pos.c+d.dc*len; if(nr>=0&&nr<N&&nc>=0&&nc<N) return {dr:d.dr, dc:d.dc, len:len, name:d.name}; }
+    return {dr:0, dc:1, len:1, name:'w prawo'}; }
+  function stepInstructionText(pos, mv){ const startLabel=letters[pos.r]+(pos.c+1); const lenText=(mv.len===1?'1 pole':(mv.len+' pola')); return 'Z pozycji '+startLabel+': przesuń się '+lenText+' '+mv.name+', a potem kliknij docelowe pole.'; }
+  function newTask(){ clearBoard(); start={r:randInt(0,N-1),c:randInt(0,N-1)}; current={...start}; const cnt=parseInt(stepsEl.value,10); sequence=[];
+    for(let i=0;i<cnt;i++){ const mv=safeMoveFrom(current); sequence.push(mv); current={ r: current.r+mv.dr*mv.len, c: current.c+mv.dc*mv.len }; }
+    current={...start}; stepIndex=0; markStart(start.r,start.c,theme.start); feedbackEl.textContent='Zaznacz cel pierwszego kroku.'; stepInfoEl.textContent='Krok 1 z '+sequence.length+'.';
+    const t = stepInstructionText(current, sequence[0]); taskEl.textContent = t; if(ttsEnabled) speak(t); }
+  function markStart(r,c,m){ const btn=findCell(r,c); if(btn){ btn.classList.add('start','current'); btn.textContent=m; } }
+  function findCell(r,c){ return gridEl.querySelector('.cell[data-r="'+r+'"][data-c="'+c+'"]'); }
+  function onPick(){ if(stepIndex>=sequence.length) return; const r=parseInt(this.dataset.r,10), c=parseInt(this.dataset.c,10); const mv=sequence[stepIndex]; const expected={ r: current.r+mv.dr*mv.len, c: current.c+mv.dc*mv.len };
+    gridEl.querySelectorAll('.wrong,.step-ok').forEach(el=>{ if(!el.classList.contains('start')){ el.classList.remove('wrong','step-ok'); if(el.hasAttribute('data-r')) el.textContent=""; } });
+    if(r===expected.r && c===expected.c){ this.classList.add('step-ok'); this.textContent=theme.ok; const prev=findCell(current.r,current.c); if(prev) prev.classList.remove('current'); this.classList.add('current'); current={...expected};
+      feedbackEl.textContent='Dobrze!'; if(ttsEnabled) speak('Dobrze!'); stepIndex++; if(stepIndex<sequence.length){ stepInfoEl.textContent='Krok '+(stepIndex+1)+' z '+sequence.length+'.'; const txt=stepInstructionText(current, sequence[stepIndex]); taskEl.textContent=txt; if(ttsEnabled) speak(txt); }
+      else { stepInfoEl.textContent='Wszystkie kroki wykonane.'; const endLabel=letters[current.r]+(current.c+1); const endMsg='Brawo! Ukończyłeś wszystkie kroki. Zakończyłeś na polu '+endLabel+'.'; taskEl.textContent=endMsg; if(ttsEnabled) speak('Brawo! Ukończyłeś wszystkie kroki.'); }
+    } else { this.classList.add('wrong'); this.textContent='×'; feedbackEl.textContent='To nie to pole. Spróbuj ponownie.'; if(ttsEnabled) speak('To nie to pole. Spróbuj ponownie.'); }
+  }
+  function clearBoard(){ taskEl.textContent='Kliknij „Nowe zadanie”, aby rozpocząć.'; stepInfoEl.textContent=''; feedbackEl.textContent='';
+    Array.from(gridEl.querySelectorAll('.cell')).forEach(el=>{ el.classList.remove('start','current','step-ok','wrong'); if(el.hasAttribute('data-r')) el.textContent=""; });
+    start=null; current=null; sequence=[]; stepIndex=0; }
+  buildGrid(N);
+  sizeEl.addEventListener('change',()=>{ buildGrid(parseInt(sizeEl.value,10)); clearBoard(); });
+  newTaskBtn.addEventListener('click',newTask); resetBtn.addEventListener('click',clearBoard);
+  toggleTTS.addEventListener('click',()=>{ ttsEnabled=!ttsEnabled; updateTTSToggle(); if(ttsEnabled && taskEl.textContent) speak(taskEl.textContent); });
+  reReadBtn.addEventListener('click',()=>{ if(ttsEnabled && taskEl.textContent) speak(taskEl.textContent); });
+  updateTTSToggle();
+})();
+</script></body></html>

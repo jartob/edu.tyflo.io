@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gra reakcyjna – dla dzieci słabowidzących</title>
+<style>
+  :root { --scale: 1.0; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: #000; color: #FFD400;
+    font-size: calc(18px * var(--scale));
+    line-height: 1.6;
+  }
+  .container { max-width: 980px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: calc(2.2rem * var(--scale)); margin: 0 0 12px; }
+  h2 { font-size: calc(1.4rem * var(--scale)); margin: 16px 0 8px; }
+  .panel {
+    border: 2px solid #FFD400; border-radius: 16px; padding: 16px; margin-bottom: 16px;
+    background: #111;
+  }
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  label { display: block; margin-bottom: 6px; }
+  input[type="number"], select, button, .toggle {
+    width: 100%; padding: 14px 16px; font-size: calc(1rem * var(--scale));
+    background: #000; color: #fff; border: 2px solid #FFD400; border-radius: 12px;
+  }
+  button { cursor: pointer; font-weight: 700; letter-spacing: 0.5px; }
+  button.primary { background: #FFD400; color: #000; border-color: #FFD400; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .display {
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    min-height: 40vh; border: 3px dashed #FFD400; border-radius: 24px; background:#000;
+    padding: 16px; user-select: none;
+  }
+  .msg { font-size: calc(4rem * var(--scale)); font-weight: 800; letter-spacing: 1px; }
+  .msg.small { font-size: calc(2.2rem * var(--scale)); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .stat { background:#111; border:2px solid #333; border-radius:12px; padding:12px; }
+  .k {
+    display:inline-flex; align-items:center; justify-content:center; min-width: 56px; padding:6px 10px; margin:0 4px;
+    border:2px solid #FFD400; border-radius:8px; font-weight:700; font-size: calc(1rem * var(--scale));
+  }
+  .light body, body.light { background:#fff; color:#000; }
+  body.light .panel { background:#fff; border-color:#000; }
+  body.light .display { border-color:#000; background:#fff; }
+  body.light input, body.light select, body.light button { background:#fff; color:#000; border-color:#000; }
+  .sr-only { position:absolute; left:-9999px; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Gra reakcyjna 🕹️</h1>
+    <p class="panel">Zadanie: naciśnij właściwy klawisz <span class="k">SPACJA</span> lub <span class="k">←</span>/<span class="k">→</span> <b>gdy usłyszysz lub zobaczysz sygnał</b>. Jeśli naciśniesz przed sygnałem – to falstart.</p>
+
+    <div class="panel">
+      <h2>Ustawienia</h2>
+      <div class="controls" role="group" aria-label="Ustawienia gry">
+        <div>
+          <label for="rounds">Liczba rund</label>
+          <input id="rounds" type="number" min="1" max="30" value="5" />
+        </div>
+        <div>
+          <label for="mode">Tryb klawiszy</label>
+          <select id="mode">
+            <option value="space">Jednym klawiszem – SPACJA</option>
+            <option value="lr">Dwoma klawiszami – ← (niski ton) / → (wysoki ton)</option>
+          </select>
+        </div>
+        <div>
+          <label for="signal">Rodzaj sygnału</label>
+          <select id="signal">
+            <option value="both">Oba – dźwięk + obraz</option>
+            <option value="sound">Tylko dźwięk</option>
+            <option value="visual">Tylko obraz</option>
+          </select>
+        </div>
+        <div>
+          <label for="fontsize">Wielkość tekstu: <span id="fontsizeVal">100%</span></label>
+          <input id="fontsize" type="range" min="80" max="180" step="5" value="100" />
+        </div>
+        <div>
+          <label for="delay">Opóźnienie sygnału (ms):
+            <span id="delayVal">900–2500</span></label>
+          <input id="delayMin" type="number" min="200" max="4000" value="900" aria-label="Minimalne opóźnienie" />
+          <input id="delayMax" type="number" min="400" max="6000" value="2500" aria-label="Maksymalne opóźnienie" />
+        </div>
+        <div>
+          <label for="theme">Kontrast</label>
+          <select id="theme">
+            <option value="dark">Czarne tło (wysoki kontrast)</option>
+            <option value="light">Białe tło (wysoki kontrast)</option>
+          </select>
+        </div>
+        <div>
+          <label for="tts">Lektor (mowa syntetyczna)</label>
+          <select id="tts"><option value="on">Włączony</option><option value="off">Wyłączony</option></select>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button id="testSound">Test dźwięku 🔊</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="panel">
+        <h2>Gra</h2>
+        <div id="display" class="display" aria-live="polite">
+          <div id="msg" class="msg">Naciśnij <span class="k">START</span></div>
+        </div>
+        <div class="controls" style="margin-top:12px;">
+          <button id="start" class="primary">START</button>
+          <button id="stop">STOP</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Wyniki</h2>
+        <div class="stats">
+          <div class="stat"><b>Runda:</b> <span id="round">0 / 0</span></div>
+          <div class="stat"><b>Ostatnia reakcja:</b> <span id="last">—</span></div>
+          <div class="stat"><b>Najlepsza:</b> <span id="best">—</span></div>
+          <div class="stat"><b>Średnia:</b> <span id="avg">—</span></div>
+          <div class="stat"><b>Falstarty / błędy:</b> <span id="fails">0</span></div>
+        </div>
+        <div style="margin-top:12px;">
+          <details>
+            <summary>Historia wyników</summary>
+            <ol id="history"></ol>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <p class="panel msg small" id="helper">
+      Wskazówka: w trybie <b>SPACJA</b> czekaj na słowo <b>TERAZ!</b> lub dźwięk. W trybie <b>←/→</b> reaguj na
+      komunikat <b>LEWO</b> / <b>PRAWO</b> i odpowiedni ton (niski/wysoki).
+    </p>
+  </div>
+
+  <script>
+    // ====== Stan gry ======
+    const state = {
+      mode: 'space', // 'space' | 'lr'
+      signal: 'both', // 'sound' | 'visual' | 'both'
+      roundsTotal: 5,
+      currentRound: 0,
+      waitingTimeout: null,
+      phase: 'idle', // 'idle' | 'waiting' | 'cue' | 'done'
+      t0: 0,
+      expectedKey: 'Space',
+      results: [], // {ms, ok, type}
+      fails: 0,
+      audioCtx: null,
+      voice: true,
+      minDelay: 900,
+      maxDelay: 2500
+    };
+
+    // ====== Elementy UI ======
+    const el = {
+      msg: document.getElementById('msg'),
+      display: document.getElementById('display'),
+      start: document.getElementById('start'),
+      stop: document.getElementById('stop'),
+      rounds: document.getElementById('rounds'),
+      mode: document.getElementById('mode'),
+      signal: document.getElementById('signal'),
+      fontsize: document.getElementById('fontsize'),
+      fontsizeVal: document.getElementById('fontsizeVal'),
+      delayMin: document.getElementById('delayMin'),
+      delayMax: document.getElementById('delayMax'),
+      delayVal: document.getElementById('delayVal'),
+      theme: document.getElementById('theme'),
+      testSound: document.getElementById('testSound'),
+      tts: document.getElementById('tts'),
+      round: document.getElementById('round'),
+      last: document.getElementById('last'),
+      best: document.getElementById('best'),
+      avg: document.getElementById('avg'),
+      fails: document.getElementById('fails'),
+      history: document.getElementById('history'),
+      helper: document.getElementById('helper'),
+    };
+
+    // ====== Audio ======
+    function ensureAudio() {
+      if (!state.audioCtx) {
+        try { state.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { console.warn('Brak WebAudio'); }
+      }
+    }
+
+    function beep(freq = 700, duration = 350) {
+      if (!state.audioCtx) return;
+      const ctx = state.audioCtx;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = freq;
+      g.gain.value = 0.001; // start cicho, unikamy trzasku
+      o.connect(g); g.connect(ctx.destination);
+      o.start();
+      const now = ctx.currentTime;
+      g.gain.exponentialRampToValueAtTime(0.25, now + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + duration/1000);
+      o.stop(now + duration/1000 + 0.02);
+    }
+
+    function speak(text) {
+      if (state.voice === false) return;
+      if (!('speechSynthesis' in window)) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'pl-PL';
+      u.rate = 0.9; u.pitch = 1.0;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }
+
+    // ====== Logika gry ======
+    function setMessage(html) { el.msg.innerHTML = html; }
+
+    function resetGame() {
+      clearTimeout(state.waitingTimeout);
+      state.results = []; state.fails = 0; state.currentRound = 0; state.phase = 'idle';
+      updateStats();
+      setMessage('Naciśnij <span class="k">START</span>');
+    }
+
+    function startGame() {
+      ensureAudio();
+      state.roundsTotal = clamp(parseInt(el.rounds.value || '5', 10), 1, 30);
+      state.currentRound = 0; state.results = []; state.fails = 0; state.phase = 'waiting';
+      nextRound();
+    }
+
+    function nextRound() {
+      state.currentRound++;
+      updateStats();
+      if (state.currentRound > state.roundsTotal) { finishGame(); return; }
+
+      // Wybór oczekiwanego klawisza
+      if (state.mode === 'space') {
+        state.expectedKey = 'Space';
+        setMessage('Czekaj na sygnał…');
+      } else {
+        // losujemy lewo/prawo
+        state.expectedKey = Math.random() < 0.5 ? 'ArrowLeft' : 'ArrowRight';
+        setMessage('Przygotuj się…');
+      }
+
+      state.phase = 'waiting';
+      const d = randomInt(state.minDelay, state.maxDelay);
+      clearTimeout(state.waitingTimeout);
+      state.waitingTimeout = setTimeout(showCue, d);
+    }
+
+    function showCue() {
+      state.phase = 'cue';
+      // Wizualny komunikat
+      let visualText = 'TERAZ!';
+      if (state.mode === 'lr') visualText = (state.expectedKey === 'ArrowLeft') ? 'LEWO' : 'PRAWO';
+
+      if (state.signal === 'visual' || state.signal === 'both') setMessage(visualText);
+
+      // Dźwięk
+      if (state.signal === 'sound' || state.signal === 'both') {
+        if (state.mode === 'lr') {
+          beep(state.expectedKey === 'ArrowLeft' ? 420 : 820, 420);
+        } else {
+          beep(700, 380);
+        }
+      }
+
+      // Mowa
+      if (state.voice) {
+        if (state.mode === 'lr') speak(visualText);
+        else speak('Teraz');
+      }
+
+      state.t0 = performance.now();
+    }
+
+    function onKey(e) {
+      if (['Space', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+
+      // Falstart
+      if (state.phase === 'waiting') {
+        state.fails++;
+        flashMsg('Za szybko! Falstart.');
+        updateStats();
+        // restart tej samej rundy (nie zwiększamy licznika rund)
+        clearTimeout(state.waitingTimeout);
+        state.phase = 'waiting';
+        state.waitingTimeout = setTimeout(showCue, randomInt(state.minDelay, state.maxDelay));
+        return;
+      }
+
+      if (state.phase !== 'cue') return; // nie liczymy poza sygnałem
+
+      const correct = e.code === state.expectedKey || (state.mode === 'space' && e.code === 'Space');
+      const t = Math.max(0, performance.now() - state.t0);
+
+      if (!correct) {
+        state.fails++;
+        flashMsg('Zły klawisz!');
+        updateStats();
+        // przechodzimy do kolejnej rundy po krótkiej pauzie
+        state.results.push({ ms: t, ok: false, type: 'wrong' });
+        state.phase = 'after';
+        setTimeout(nextRound, 900);
+        return;
+      }
+
+      // Sukces
+      state.results.push({ ms: t, ok: true, type: 'ok' });
+      flashMsg(`✔ ${Math.round(t)} ms`);
+      updateStats();
+      state.phase = 'after';
+      setTimeout(nextRound, 900);
+    }
+
+    function flashMsg(text) {
+      setMessage(text);
+      el.display.style.borderColor = '#5cff7a';
+      setTimeout(() => { el.display.style.borderColor = '#FFD400'; }, 400);
+    }
+
+    function finishGame() {
+      state.phase = 'done';
+      const ok = state.results.filter(r => r.ok).map(r => r.ms);
+      const avg = ok.length ? Math.round(ok.reduce((a,b)=>a+b,0) / ok.length) : '—';
+      const best = ok.length ? Math.round(Math.min(...ok)) : '—';
+      setMessage(`Koniec! Najlepszy: ${best} ms · Średnia: ${avg} ms`);
+    }
+
+    function updateStats() {
+      el.round.textContent = `${Math.min(state.currentRound, state.roundsTotal)} / ${state.roundsTotal}`;
+      const oks = state.results.filter(r => r.ok).map(r => r.ms);
+      el.last.textContent = state.results.length ? `${Math.round(state.results[state.results.length-1].ms)} ms (${state.results[state.results.length-1].ok ? 'OK' : 'błąd'})` : '—';
+      el.best.textContent = oks.length ? `${Math.round(Math.min(...oks))} ms` : '—';
+      el.avg.textContent = oks.length ? `${Math.round(oks.reduce((a,b)=>a+b,0)/oks.length)} ms` : '—';
+      el.fails.textContent = String(state.fails);
+      el.history.innerHTML = state.results.map((r,i)=>`<li>${i+1}. ${r.ok ? 'OK' : 'błąd'} – ${Math.round(r.ms)} ms</li>`).join('');
+    }
+
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+    function randomInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+
+    // ====== Zdarzenia UI ======
+    window.addEventListener('keydown', onKey);
+    el.start.addEventListener('click', () => { ensureAudio(); startGame(); });
+    el.stop.addEventListener('click', () => { resetGame(); });
+
+    el.rounds.addEventListener('change', () => { state.roundsTotal = clamp(parseInt(el.rounds.value||'5',10),1,30); updateStats(); });
+    el.mode.addEventListener('change', () => { state.mode = el.mode.value; resetGame(); helperText(); });
+    el.signal.addEventListener('change', () => { state.signal = el.signal.value; resetGame(); });
+    el.fontsize.addEventListener('input', () => {
+      const v = parseInt(el.fontsize.value,10); el.fontsizeVal.textContent = v + '%';
+      document.documentElement.style.setProperty('--scale', (v/100).toString());
+    });
+
+    function syncDelay() {
+      let min = parseInt(el.delayMin.value,10); let max = parseInt(el.delayMax.value,10);
+      if (max < min + 100) max = min + 100;
+      state.minDelay = clamp(min, 200, 6000);
+      state.maxDelay = clamp(max, 300, 8000);
+      el.delayMin.value = state.minDelay; el.delayMax.value = state.maxDelay;
+      el.delayVal.textContent = `${state.minDelay}–${state.maxDelay}`;
+    }
+    el.delayMin.addEventListener('change', syncDelay);
+    el.delayMax.addEventListener('change', syncDelay);
+
+    el.theme.addEventListener('change', () => {
+      document.body.classList.toggle('light', el.theme.value === 'light');
+    });
+
+    el.testSound.addEventListener('click', () => { ensureAudio(); beep(750, 300); speak('Test dźwięku'); });
+
+    el.tts.addEventListener('change', () => { state.voice = el.tts.value === 'on'; if (!state.voice && 'speechSynthesis' in window) window.speechSynthesis.cancel(); });
+
+    function helperText(){
+      el.helper.innerHTML = state.mode === 'space'
+        ? 'Wskazówka: czekaj na słowo <b>TERAZ!</b> lub dźwięk, a potem naciśnij <span class="k">SPACJA</span>.'
+        : 'Wskazówka: reaguj na <b>LEWO</b> / <b>PRAWO</b> (niski/wysoki ton) i naciśnij <span class="k">←</span> / <span class="k">→</span>.';
+    }
+
+    // Startowe ustawienia
+    (function init(){
+      helperText();
+      syncDelay();
+      updateStats();
+    })();
+  </script>
+</body>
+</html>

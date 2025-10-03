@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pojedynek na orientację – gra dla 2 osób (z lektorem)</title>
+<style>
+  :root { --cell: 72px; }
+  body { font-family: system-ui, sans-serif; line-height: 1.5; padding: 16px; background:#fff; color:#111; }
+  h1 { font-size: 1.6rem; margin: 0 0 8px; }
+  .card { border: 2px solid #111; border-radius: 12px; padding: 12px; background:#f7f7f7; margin-bottom: 12px; }
+  .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  button, select, input { font-size: 1rem; padding: 6px 10px; border:2px solid #111; border-radius: 8px; background:#fff; cursor:pointer; }
+  input[type=text] { width:100px; }
+  .grid { display:grid; gap:4px; justify-content:start; align-items:start; margin-top:8px; }
+  .cell { width: var(--cell); height: var(--cell); display:grid; place-items:center; border:2px solid #111; border-radius:10px; background:#fff; font-size:1.2rem; cursor:pointer; }
+  .hdr { background:#eee; font-weight:700; }
+  .start { background:#fffbcc; }
+  .ok { background:#c8f7c5; }
+  .wrong { background:#ffd1d1; }
+</style>
+</head>
+<body>
+  <h1>🧭 Pojedynek na orientację (gra dla 2 osób z lektorem)</h1>
+
+  <div class="card">
+    <div class="controls">
+      <label>Gracz 1:</label><input id="p1name" type="text" value="Ania">
+      <label>Gracz 2:</label><input id="p2name" type="text" value="Bartek">
+      <label>Siatka:</label><select id="size"><option>6</option><option selected>8</option><option>10</option></select>
+      <label>Rundy:</label><select id="rounds"><option>4</option><option selected>6</option><option>8</option></select>
+      <button id="startBtn">▶️ Start meczu</button>
+    </div>
+    <div><span id="turnInfo">Tura: –</span> | <span id="scoreInfo">Wynik 0 : 0</span> | <span id="roundInfo">Runda 0/0</span></div>
+    <div id="task">Uzupełnij imiona i kliknij „Start meczu”.</div>
+    <div id="feedback"></div>
+  </div>
+
+  <div id="grid" class="grid card"></div>
+
+  <div class="card">
+    <button id="toggleTTS" aria-pressed="false">🔈 Lektor: wyłączony</button>
+    <button id="reRead" disabled>🔁 Przeczytaj ponownie</button>
+  </div>
+
+<script>
+(function(){
+  const gridEl=document.getElementById('grid'),taskEl=document.getElementById('task'),feedbackEl=document.getElementById('feedback');
+  const p1nameEl=document.getElementById('p1name'),p2nameEl=document.getElementById('p2name');
+  const sizeEl=document.getElementById('size'),roundsEl=document.getElementById('rounds'),startBtn=document.getElementById('startBtn');
+  const turnInfo=document.getElementById('turnInfo'),scoreInfo=document.getElementById('scoreInfo'),roundInfo=document.getElementById('roundInfo');
+  const toggleTTS=document.getElementById('toggleTTS'),reReadBtn=document.getElementById('reRead');
+
+  const letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""); let N=8,maxRounds=6,round=0; let turn=1; let scores={1:0,2:0};
+  let currentTarget=null,start=null,lastInstruction=""; let ttsEnabled=false;
+
+  function speak(text){ if(!ttsEnabled||!('speechSynthesis'in window))return;
+    window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='pl-PL';window.speechSynthesis.speak(u);}
+  function updateTTSToggle(){toggleTTS.setAttribute('aria-pressed',String(ttsEnabled));
+    toggleTTS.textContent=ttsEnabled?'🔊 Lektor: włączony':'🔈 Lektor: wyłączony';reReadBtn.disabled=!ttsEnabled;}
+
+  function buildGrid(n){N=n;gridEl.style.gridTemplateColumns='repeat('+(N+1)+', auto)';gridEl.innerHTML='';
+    const corner=document.createElement('div');corner.className='cell hdr';gridEl.appendChild(corner);
+    for(let c=0;c<N;c++){const h=document.createElement('div');h.className='cell hdr';h.textContent=(c+1);gridEl.appendChild(h);}
+    for(let r=0;r<N;r++){const hr=document.createElement('div');hr.className='cell hdr';hr.textContent=letters[r];gridEl.appendChild(hr);
+      for(let c=0;c<N;c++){const cell=document.createElement('button');cell.className='cell';cell.dataset.r=r;cell.dataset.c=c;
+        cell.addEventListener('click',onPick);gridEl.appendChild(cell);} }}
+
+  function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+  function safeSequence(pos){let seq=[],cur={r:pos.r,c:pos.c};const steps=randInt(3,5);
+    for(let i=0;i<steps;i++){const dirs=[{dr:-1,dc:0,name:'w górę'},{dr:1,dc:0,name:'w dół'},{dr:0,dc:-1,name:'w lewo'},{dr:0,dc:1,name:'w prawo'}];
+      const d=dirs[randInt(0,dirs.length-1)],len=1;const nr=cur.r+d.dr*len,nc=cur.c+d.dc*len;
+      if(nr>=0&&nr<N&&nc>=0&&nc<N){cur={r:nr,c:nc};seq.push("1 pole "+d.name);}}
+    return {seq,end:cur};}
+
+  function newRound(){round++;if(round>maxRounds){endMatch();return;}
+    gridEl.querySelectorAll('.cell').forEach(c=>{c.classList.remove('start','ok','wrong');c.textContent="";});
+    start={r:randInt(0,N-1),c:randInt(0,N-1)};
+    const startCell=gridEl.querySelector('[data-r="'+start.r+'"][data-c="'+start.c+'"]');
+    startCell.classList.add('start');startCell.textContent=(turn===1?'①':'②');
+    const {seq,end}=safeSequence(start);currentTarget=end;
+    const startLabel=letters[start.r]+(start.c+1);
+    lastInstruction="Gracz "+turn+" ("+(turn===1?p1nameEl.value:p2nameEl.value)+") start: "+startLabel+". Ruchy: "+seq.join(", ")+". Które pole to cel?";
+    taskEl.textContent=lastInstruction;if(ttsEnabled)speak(lastInstruction);
+    turnInfo.textContent="Tura: "+(turn===1?p1nameEl.value:p2nameEl.value);
+    scoreInfo.textContent="Wynik "+scores[1]+" : "+scores[2];
+    roundInfo.textContent="Runda "+round+"/"+maxRounds;}
+
+  function onPick(){if(!currentTarget)return;const r=parseInt(this.dataset.r),c=parseInt(this.dataset.c);
+    if(r===currentTarget.r&&c===currentTarget.c){this.classList.add('ok');this.textContent='🎯';
+      feedbackEl.textContent="Brawo! Punkt dla gracza "+turn;scores[turn]++;turn=(turn===1?2:1);setTimeout(newRound,1200);}
+    else{this.classList.add('wrong');this.textContent='×';feedbackEl.textContent="To nie to pole. Spróbuj ponownie.";}
+    scoreInfo.textContent="Wynik "+scores[1]+" : "+scores[2];}
+
+  function endMatch(){currentTarget=null;const msg=scores[1]===scores[2]?"Remis!":(scores[1]>scores[2]?p1nameEl.value+" wygrał!":p2nameEl.value+" wygrał!");
+    taskEl.textContent="Koniec meczu. "+msg;if(ttsEnabled)speak("Koniec meczu. "+msg);}
+
+  startBtn.addEventListener('click',()=>{N=parseInt(sizeEl.value);maxRounds=parseInt(roundsEl.value);
+    scores={1:0,2:0};turn=1;round=0;buildGrid(N);newRound();});
+  toggleTTS.addEventListener('click',()=>{ttsEnabled=!ttsEnabled;updateTTSToggle();if(ttsEnabled&&lastInstruction)speak(lastInstruction);});
+  reReadBtn.addEventListener('click',()=>{if(ttsEnabled&&lastInstruction)speak(lastInstruction);});
+  updateTTSToggle();buildGrid(N);
+})();
+</script>
+</body>
+</html>

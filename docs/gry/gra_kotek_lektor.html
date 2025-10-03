@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>🐱 Kotek szuka mamy (z lektorem)</title>
+<style>
+  :root { --cell: 80px; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; padding: 16px; }
+  .controls { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0 16px; }
+  select, button, input[type="range"] { font-size:1rem; padding:10px 14px; border:2px solid #111; border-radius:8px; background:#fff; cursor:pointer; }
+  .panel { border:2px solid #111; border-radius:12px; padding:12px; margin-bottom:16px; background:#f7f7f7; }
+  .grid { display:grid; gap:4px; justify-content:start; align-items:start; margin-top:12px; }
+  .cell { width: var(--cell); height: var(--cell); display:grid; place-items:center; border:2px solid #111; border-radius:10px; font-size:2rem; background:#fff; cursor:pointer; }
+  .start { background:#fffbcc; } .correct { background:#c8f7c5; } .wrong { background:#ffd1d1; }
+  .small { font-size:.9rem; }
+</style></head><body>
+<h1>🐱 Kotek szuka mamy <span class="small">(z lektorem)</span></h1>
+<div class="panel">
+  <p id="task" aria-live="polite">Kliknij „Nowe zadanie”, aby rozpocząć.</p>
+  <div class="controls">
+    <label for="size">Siatka:</label>
+    <select id="size"><option value="3">3×3</option><option value="4" selected>4×4</option><option value="5">5×5</option><option value="6">6×6</option></select>
+    <button id="newTaskBtn">Nowe zadanie</button>
+    <button id="revealBtn">Pokaż mamę kotka</button>
+    <button id="resetBtn">Wyczyść</button>
+  </div>
+  <div class="controls">
+    <button id="toggleTTS" aria-pressed="false">🔈 Lektor: wyłączony</button>
+    <button id="reRead" disabled>🔁 Przeczytaj ponownie</button>
+    <label for="rate" class="small">Szybkość:</label><input id="rate" type="range" min="0.6" max="1.4" step="0.1" value="1">
+    <label for="volume" class="small">Głośność:</label><input id="volume" type="range" min="0" max="1" step="0.1" value="1">
+  </div>
+  <div id="feedback" class="small" aria-live="assertive"></div>
+</div>
+<div id="grid" class="grid" role="grid" aria-label="Plansza"></div>
+<script>
+(function(){
+  const gridEl=document.getElementById('grid'),taskEl=document.getElementById('task'),feedbackEl=document.getElementById('feedback');
+  const sizeEl=document.getElementById('size'),newTaskBtn=document.getElementById('newTaskBtn'),revealBtn=document.getElementById('revealBtn'),resetBtn=document.getElementById('resetBtn');
+  const toggleTTS=document.getElementById('toggleTTS'),reReadBtn=document.getElementById('reRead'),rateEl=document.getElementById('rate'),volumeEl=document.getElementById('volume');
+  const letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""); let N=parseInt(sizeEl.value,10),start=null,target=null,pathText="",ttsEnabled=false;
+  function speak(t){ if(!ttsEnabled||!('speechSynthesis'in window))return; window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; u.rate=parseFloat(rateEl.value||1); u.volume=parseFloat(volumeEl.value||1); window.speechSynthesis.speak(u);}
+  function updateTTSToggle(){ toggleTTS.setAttribute('aria-pressed',String(ttsEnabled)); toggleTTS.textContent = ttsEnabled?'🔊 Lektor: włączony':'🔈 Lektor: wyłączony'; reReadBtn.disabled=!ttsEnabled; }
+  function buildGrid(n){ N=n; gridEl.style.gridTemplateColumns='repeat('+(N+1)+',auto)'; gridEl.innerHTML=""; const topLeft=document.createElement('div'); topLeft.className='cell'; topLeft.setAttribute('aria-hidden','true'); gridEl.appendChild(topLeft);
+    for(let c=0;c<N;c++){ const hd=document.createElement('div'); hd.className='cell'; hd.textContent=(c+1); hd.style.fontWeight='700'; hd.style.background='#eee'; gridEl.appendChild(hd);}
+    for(let r=0;r<N;r++){ const rh=document.createElement('div'); rh.className='cell'; rh.textContent=letters[r]; rh.style.fontWeight='700'; rh.style.background='#eee'; gridEl.appendChild(rh);
+      for(let c=0;c<N;c++){ const cell=document.createElement('button'); cell.className='cell'; cell.dataset.r=r; cell.dataset.c=c; cell.addEventListener('click',onPick); gridEl.appendChild(cell); } }
+  }
+  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function newTask(){ clearBoard(); start={r:randInt(0,N-1),c:randInt(0,N-1)}; const steps=randInt(2,4),moves=[]; let cur={...start};
+    for(let i=0;i<steps;i++){ const dirs=[{dr:-1,dc:0,name:'w górę'},{dr:1,dc:0,name:'w dół'},{dr:0,dc:-1,name:'w lewo'},{dr:0,dc:1,name:'w prawo'}]; let len=(N>=5)?randInt(1,3):randInt(1,2),chosen=null;
+      for(const d of dirs.sort(()=>Math.random()-0.5)){ const nr=cur.r+d.dr*len, nc=cur.c+d.dc*len; if(nr>=0&&nr<N&&nc>=0&&nc<N){ chosen={dr:d.dr,dc:d.dc,len:len,name:d.name}; break; } }
+      if(!chosen) chosen={dr:0,dc:1,len:1,name:'w prawo'}; moves.push(chosen); cur={r:cur.r+chosen.dr*chosen.len, c:cur.c+chosen.dc*chosen.len}; }
+    target={...cur}; const startLabel=letters[start.r]+(start.c+1); const parts=moves.map(m=>m.len===1?('1 pole '+m.name):(m.len+' pola '+m.name));
+    pathText="Mały kotek startuje. Pomóż mu znaleźć mamę. Start: "+startLabel+". Idź: "+parts.join(", ")+". Które to pole?"; taskEl.textContent=pathText; markStart(start.r,start.c); feedbackEl.textContent="Wybierz właściwe pole."; if(ttsEnabled) speak(pathText); }
+  function markStart(r,c){ const btn=findCell(r,c); if(btn){ btn.classList.add('start'); btn.textContent="🐱"; } }
+  function findCell(r,c){ return gridEl.querySelector('.cell[data-r="'+r+'"][data-c="'+c+'"]'); }
+  function onPick(){ if(!target) return; const r=parseInt(this.dataset.r,10), c=parseInt(this.dataset.c,10);
+    gridEl.querySelectorAll('.wrong,.correct').forEach(el=>{ if(!el.classList.contains('start')){ el.classList.remove('wrong','correct'); el.textContent=""; } });
+    if(r===target.r && c===target.c){ this.classList.add('correct'); this.textContent="🐈‍⬛❤️"; const msg="Brawo! To właściwe pole."; feedbackEl.textContent=msg; if(ttsEnabled) speak(msg);}
+    else { this.classList.add('wrong'); this.textContent="❌"; const msg="To nie to pole. Spróbuj ponownie."; feedbackEl.textContent=msg; if(ttsEnabled) speak(msg);}
+  }
+  function reveal(){ if(!target) return; const cell=findCell(target.r,target.c); if(cell){ cell.classList.add('correct'); cell.textContent="🐈‍⬛❤️"; const msg="To tutaj!"; feedbackEl.textContent=msg; if(ttsEnabled) speak(msg); } }
+  function clearBoard(){ feedbackEl.textContent=""; Array.from(gridEl.querySelectorAll('.cell')).forEach(el=>{ el.classList.remove('start','correct','wrong'); if(el.hasAttribute('data-r')) el.textContent=""; }); taskEl.textContent="Kliknij „Nowe zadanie”, aby rozpocząć."; start=null; target=null; }
+  buildGrid(N);
+  sizeEl.addEventListener('change',()=>{ buildGrid(parseInt(sizeEl.value,10)); clearBoard(); });
+  newTaskBtn.addEventListener('click',newTask); revealBtn.addEventListener('click',reveal); resetBtn.addEventListener('click',clearBoard);
+  toggleTTS.addEventListener('click',()=>{ ttsEnabled=!ttsEnabled; updateTTSToggle(); if(ttsEnabled && taskEl.textContent) speak(taskEl.textContent); });
+  reReadBtn.addEventListener('click',()=>{ if(ttsEnabled && taskEl.textContent) speak(taskEl.textContent); });
+  function updateTTSToggle(){ toggleTTS.setAttribute('aria-pressed',String(ttsEnabled)); toggleTTS.textContent= ttsEnabled?'🔊 Lektor: włączony':'🔈 Lektor: wyłączony'; reReadBtn.disabled=!ttsEnabled; }
+  updateTTSToggle();
+})();
+</script></body></html>

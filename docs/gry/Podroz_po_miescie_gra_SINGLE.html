@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Podróż po mieście – gra edukacyjna (z lektorem)</title>
+<style>
+  :root { --cell: 72px; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; padding: 16px; background:#fff; color:#111; }
+  h1 { font-size: 1.6rem; margin: 0 0 8px; }
+  .card { border: 2px solid #111; border-radius: 12px; padding: 12px; background:#f7f7f7; margin-bottom: 12px; }
+  .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  button, select, input[type="range"] { font-size: 1rem; padding: 10px 14px; border:2px solid #111; border-radius: 10px; background:#fff; cursor:pointer; }
+  button[disabled] { opacity:.6; cursor:not-allowed; }
+  .grid { display:grid; gap:4px; justify-content:start; align-items:start; margin-top:8px; }
+  .cell { width: var(--cell); height: var(--cell); display:grid; place-items:center; border:2px solid #111; border-radius:10px; background:#fff; font-size:1.2rem; cursor:pointer; }
+  .hdr { background:#eee; font-weight:700; }
+  .start { background:#fffbcc; }
+  .current { background:#dff1ff; }
+  .ok { background:#c8f7c5; }
+  .wrong { background:#ffd1d1; }
+  .small { font-size:.9rem; }
+  .spacer { flex:1; }
+  .pill { display:inline-block; padding:2px 8px; border:1px solid #111; border-radius:999px; margin:2px 4px 0 0; background:#fff; }
+  .muted { opacity:.85; }
+  dialog.character { border:2px solid #111; border-radius: 16px; padding: 16px; }
+  .char-grid { display:flex; gap:16px; }
+  .char-card { border:2px solid #111; border-radius:14px; padding:12px; display:grid; place-items:center; width:150px; cursor:pointer; background:#fff; }
+  .char-card.selected { outline:4px solid #000; }
+  .char-emoji { font-size:3rem; }
+  .route { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .route .stop { display:flex; align-items:center; gap:6px; }
+  .route .done { text-decoration: line-through; opacity:.7; }
+</style>
+</head>
+<body>
+  <h1>🏙️ Podróż po mieście <span class="small">(z lektorem)</span></h1>
+
+  <div class="card">
+    <div class="controls">
+      <strong>Cel:</strong> <span class="small">Odwiedź po kolei wskazane miejsca w mieście. Po każdym etapie rozwiąż krótką zagadkę.</span>
+      <div class="spacer"></div>
+      <button id="chooseCharBtn">Wybierz postać</button>
+    </div>
+    <div class="small muted" id="charInfo">Postać: nie wybrano</div>
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <label for="size">Rozmiar siatki:</label>
+      <select id="size">
+        <option value="6">6×6</option>
+        <option value="8" selected>8×8</option>
+        <option value="10">10×10</option>
+      </select>
+      <label for="difficulty">Trudność:</label>
+      <select id="difficulty">
+        <option value="easy">Łatwa (3–4 kroki)</option>
+        <option value="medium" selected>Średnia (4–5 kroków)</option>
+        <option value="hard">Trudna (5–6 kroków)</option>
+      </select>
+      <button id="newStageBtn">Nowy etap</button>
+      <button id="revealBtn">Pokaż cel</button>
+      <button id="resetBtn">Wyczyść planszę</button>
+      <div class="spacer"></div>
+      <button id="toggleTTS" aria-pressed="false">🔈 Lektor: wyłączony</button>
+      <button id="reRead" disabled>🔁 Przeczytaj ponownie</button>
+      <label for="rate" class="small">Szybkość</label><input id="rate" type="range" min="0.6" max="1.4" step="0.1" value="1">
+      <label for="volume" class="small">Głośność</label><input id="volume" type="range" min="0" max="1" step="0.1" value="1">
+    </div>
+    <div class="route small" id="routeBar" aria-live="polite"></div>
+    <div id="task" aria-live="polite">Wybierz postać i kliknij „Nowy etap”.</div>
+    <div id="feedback" class="small" aria-live="assertive"></div>
+  </div>
+
+  <div id="grid" class="grid card" role="grid" aria-label="Mapa miasta"></div>
+
+  <div class="card" id="quizBox" hidden>
+    <div><strong>Mini‑quiz:</strong> <span id="quizQuestion"></span></div>
+    <div id="quizOptions" class="controls" style="margin-top:8px;"></div>
+    <div id="quizFeedback" class="small"></div>
+  </div>
+
+  <dialog class="character" id="charDialog">
+    <form method="dialog">
+      <h3>Wybierz postać</h3>
+      <div class="char-grid">
+        <div class="char-card" data-char="boy" tabindex="0" role="button" aria-label="Wybierz chłopca">
+          <div class="char-emoji">👦</div><div>Chłopiec</div>
+        </div>
+        <div class="char-card" data-char="girl" tabindex="0" role="button" aria-label="Wybierz dziewczynkę">
+          <div class="char-emoji">👧</div><div>Dziewczynka</div>
+        </div>
+      </div>
+      <div class="controls" style="margin-top:12px;">
+        <button value="cancel">Anuluj</button>
+        <button id="confirmChar" disabled>Potwierdź wybór</button>
+      </div>
+    </form>
+  </dialog>
+
+<script>
+(function(){
+  // --- Elements
+  const gridEl = document.getElementById('grid');
+  const taskEl = document.getElementById('task');
+  const feedbackEl = document.getElementById('feedback');
+  const sizeEl = document.getElementById('size');
+  const difficultyEl = document.getElementById('difficulty');
+  const newStageBtn = document.getElementById('newStageBtn');
+  const revealBtn = document.getElementById('revealBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const routeBar = document.getElementById('routeBar');
+
+  const toggleTTS = document.getElementById('toggleTTS');
+  const reReadBtn = document.getElementById('reRead');
+  const rateEl = document.getElementById('rate');
+  const volumeEl = document.getElementById('volume');
+
+  const charDialog = document.getElementById('charDialog');
+  const chooseCharBtn = document.getElementById('chooseCharBtn');
+  const confirmCharBtn = document.getElementById('confirmChar');
+  const charInfo = document.getElementById('charInfo');
+
+  const quizBox = document.getElementById('quizBox');
+  const quizQuestion = document.getElementById('quizQuestion');
+  const quizOptions = document.getElementById('quizOptions');
+  const quizFeedback = document.getElementById('quizFeedback');
+
+  // --- State
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const places = [
+    {key:"park",   label:"Park",   icon:"🌳"},
+    {key:"sklep",  label:"Sklep",  icon:"🛒"},
+    {key:"szkola", label:"Szkoła", icon:"🏫"},
+    {key:"dom",    label:"Dom",    icon:"🏡"},
+  ];
+  const quizBank = {
+    park: [
+      {q:"Które zwierzę często spotkasz w parku?", opts:["Delfin","Wiewiórka","Rekin"], correct:1},
+      {q:"Jak dbamy o park?", opts:["Śmiecimy","Nie niszczymy roślin","Kopiemy doły"], correct:1},
+    ],
+    sklep: [
+      {q:"Czym płacimy w sklepie?", opts:["Kamieniami","Pieniędzmi","Listami"], correct:1},
+      {q:"Co w sklepie nosimy na zakupy, by być eko?", opts:["Rekin","Torba wielorazowa","Parasol"], correct:1},
+    ],
+    szkola: [
+      {q:"Gdzie odrabiamy zadania?", opts:["W klasie/ domu","Na dachu","W jeziorze"], correct:0},
+      {q:"Co robimy na przerwie?", opts:["Biegamy bezpiecznie","Rzucamy kamieniami","Rozlewamy wodę"], correct:0},
+    ],
+    dom: [
+      {q:"Co robimy po powrocie do domu?", opts:["Myjemy ręce","Rzucamy plecak","Krzyczymy"], correct:0},
+      {q:"Które z tych to obowiązek domowy?", opts:["Wyrzucenie śmieci","Malowanie ścian grafitti","Tłuczenie talerzy"], correct:0},
+    ]
+  };
+
+  let route = [];
+  let visited = new Set();
+  let currentTarget = null;
+  let start = null;
+  let pathText = "";
+  let N = parseInt(sizeEl.value,10);
+  let ttsEnabled = false;
+  let character = null; // "boy" | "girl"
+
+  // --- TTS
+  function speak(text){
+    if(!ttsEnabled || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'pl-PL';
+    u.rate = parseFloat(rateEl.value || 1);
+    u.volume = parseFloat(volumeEl.value || 1);
+    window.speechSynthesis.speak(u);
+  }
+  function updateTTSToggle(){
+    toggleTTS.setAttribute('aria-pressed', String(ttsEnabled));
+    toggleTTS.textContent = ttsEnabled ? '🔊 Lektor: włączony' : '🔈 Lektor: wyłączony';
+    reReadBtn.disabled = !ttsEnabled;
+  }
+
+  // --- Grid
+  function buildGrid(n){
+    N = n;
+    gridEl.style.gridTemplateColumns = 'repeat(' + (N+1) + ', auto)';
+    gridEl.innerHTML = "";
+    const corner = document.createElement('div');
+    corner.className = 'cell hdr'; corner.setAttribute('aria-hidden','true'); gridEl.appendChild(corner);
+    for(let c=0;c<N;c++){ const h=document.createElement('div'); h.className='cell hdr'; h.textContent=(c+1); gridEl.appendChild(h); }
+    for(let r=0;r<N;r++){
+      const hr=document.createElement('div'); hr.className='cell hdr'; hr.textContent=letters[r]; gridEl.appendChild(hr);
+      for(let c=0;c<N;c++){
+        const cell=document.createElement('button'); cell.className='cell'; cell.dataset.r=r; cell.dataset.c=c;
+        cell.setAttribute('aria-label', 'Pole '+letters[r]+(c+1));
+        cell.addEventListener('click', onPick);
+        gridEl.appendChild(cell);
+      }
+    }
+  }
+  function findCell(r,c){ return gridEl.querySelector('.cell[data-r="'+r+'"][data-c="'+c+'"]'); }
+  function clearBoard(){
+    Array.from(gridEl.querySelectorAll('.cell')).forEach(el=>{
+      el.classList.remove('start','current','ok','wrong');
+      if(el.hasAttribute('data-r')) el.textContent = "";
+    });
+    feedbackEl.textContent = "";
+    taskEl.textContent = "Kliknij „Nowy etap”, aby rozpocząć.";
+    start=null; currentTarget=null; pathText="";
+  }
+
+  // --- Helpers
+  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function shuffle(arr){ return arr.map(x=>[Math.random(),x]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]); }
+
+  function stepsByDiff(){
+    const d = difficultyEl.value;
+    if(d==='easy') return randInt(3,4);
+    if(d==='hard') return randInt(5,6);
+    return randInt(4,5);
+  }
+
+  function safeSequence(pos){
+    const seq = [];
+    let cur = {r:pos.r, c:pos.c};
+    const S = stepsByDiff();
+    for(let i=0;i<S;i++){
+      const dirs=[{dr:-1,dc:0,name:'w górę'},{dr:1,dc:0,name:'w dół'},{dr:0,dc:-1,name:'w lewo'},{dr:0,dc:1,name:'w prawo'}];
+      const len = (N>=8) ? randInt(1,3) : randInt(1,2);
+      let chosen=null;
+      for(const d of shuffle(dirs)){
+        const nr=cur.r+d.dr*len, nc=cur.c+d.dc*len;
+        if(nr>=0&&nr<N&&nc>=0&&nc<N){ chosen={dr:d.dr,dc:d.dc,len,name:d.name}; break; }
+      }
+      if(!chosen) chosen={dr:0,dc:1,len:1,name:'w prawo'};
+      seq.push(chosen);
+      cur={r:cur.r+chosen.dr*chosen.len, c:cur.c+chosen.dc*chosen.len};
+    }
+    return {seq, end:cur};
+  }
+
+  // --- Route
+  function drawRoute(){
+    route = shuffle(places.slice());
+    visited = new Set();
+    routeBar.innerHTML = route.map(p=>{
+      return '<span class="pill stop" data-key="'+p.key+'">'+p.icon+' '+p.label+'</span>';
+    }).join('');
+  }
+  function markVisited(key){
+    const el = routeBar.querySelector('[data-key="'+key+'"]');
+    if(el) el.classList.add('done');
+  }
+
+  function prepareQuiz(placeKey){
+    quizBox.hidden = false;
+    const bank = quizBank[placeKey];
+    const item = bank[Math.floor(Math.random()*bank.length)];
+    quizQuestion.textContent = item.q;
+    quizOptions.innerHTML = "";
+    item.opts.forEach((op, idx)=>{
+      const btn = document.createElement('button');
+      btn.textContent = op;
+      btn.addEventListener('click', ()=>{
+        if(idx === item.correct){
+          quizFeedback.textContent = "✅ Świetnie!";
+          speak("Świetnie!");
+          // mark route and allow next stage
+          const p = route.find(x=>!visited.has(x.key));
+          if(p){ visited.add(p.key); markVisited(p.key); }
+        } else {
+          quizFeedback.textContent = "❌ To nie ta odpowiedź. Spróbuj jeszcze raz.";
+          speak("To nie ta odpowiedź. Spróbuj jeszcze raz.");
+        }
+      });
+      quizOptions.appendChild(btn);
+    });
+  }
+
+  // --- Stage logic
+  function newStage(){
+    if(!character){
+      taskEl.textContent = "Najpierw wybierz postać (przycisk u góry).";
+      speak("Najpierw wybierz postać.");
+      return;
+    }
+    clearBoard();
+    quizBox.hidden = true; quizQuestion.textContent=""; quizOptions.innerHTML=""; quizFeedback.textContent="";
+    if(route.length===0 || visited.size===route.length) drawRoute();
+
+    // pick next unvisited place
+    const next = route.find(p=>!visited.has(p.key));
+    if(!next){ taskEl.textContent = "Wszystkie miejsca odwiedzone! Brawo!"; speak("Wszystkie miejsca odwiedzone! Brawo!"); return; }
+
+    // choose random start
+    start = { r: randInt(0,N-1), c: randInt(0,N-1) };
+    const startBtn = findCell(start.r, start.c);
+    startBtn.classList.add('start','current');
+    startBtn.textContent = (character==='boy'?'👦':'👧');
+
+    // build sequence
+    const {seq, end} = safeSequence(start);
+    currentTarget = end;
+    const startLabel = letters[start.r] + (start.c+1);
+    const parts = seq.map(m => (m.len===1 ? '1 pole '+m.name : (m.len+' pola '+m.name)));
+    pathText = 'Cel: '+next.label+' '+next.icon+'. Start: '+startLabel+'. Idź: '+parts.join(', ')+'. Które to pole?';
+    taskEl.textContent = pathText;
+    if(ttsEnabled) speak(pathText);
+
+    // setup reveal
+    revealBtn.onclick = ()=>{
+      const cell = findCell(currentTarget.r, currentTarget.c);
+      if(cell){ cell.classList.add('ok'); cell.textContent='✔'; }
+    };
+
+    newStageBtn.blur();
+  }
+
+  function onPick(){
+    if(!currentTarget) return;
+    const r = parseInt(this.dataset.r,10);
+    const c = parseInt(this.dataset.c,10);
+    gridEl.querySelectorAll('.wrong,.ok').forEach(el=>{
+      if(!el.classList.contains('start')){ el.classList.remove('wrong','ok'); if(el.hasAttribute('data-r')) el.textContent=""; }
+    });
+    if(r===currentTarget.r && c===currentTarget.c){
+      this.classList.add('ok');
+      this.textContent = '✔';
+      feedbackEl.textContent = "Brawo! Dotarłeś do celu. Otwieram mini‑quiz…";
+      speak("Brawo! Dotarłeś do celu.");
+      // show quiz
+      const next = route.find(p=>!visited.has(p.key));
+      if(next){ prepareQuiz(next.key); }
+    } else {
+      this.classList.add('wrong');
+      this.textContent = '×';
+      feedbackEl.textContent = "To nie to pole. Spróbuj ponownie.";
+      speak("To nie to pole. Spróbuj ponownie.");
+    }
+  }
+
+  // --- Character dialog
+  chooseCharBtn.addEventListener('click', ()=>{
+    Array.from(charDialog.querySelectorAll('.char-card')).forEach(el=>el.classList.remove('selected'));
+    confirmCharBtn.disabled = true;
+    charDialog.showModal();
+  });
+  charDialog.addEventListener('click', (e)=>{
+    const el = e.target.closest('.char-card');
+    if(!el) return;
+    Array.from(charDialog.querySelectorAll('.char-card')).forEach(x=>x.classList.remove('selected'));
+    el.classList.add('selected');
+    character = el.dataset.char;
+    confirmCharBtn.disabled = false;
+  });
+  confirmCharBtn.addEventListener('click', ()=>{
+    charDialog.close();
+    charInfo.textContent = 'Postać: ' + (character==='boy' ? 'Chłopiec 👦' : 'Dziewczynka 👧');
+    speak('Wybrano postać');
+  });
+
+  // --- Events
+  function buildAndReset(){ buildGrid(parseInt(sizeEl.value,10)); clearBoard(); }
+  sizeEl.addEventListener('change', buildAndReset);
+  difficultyEl.addEventListener('change', ()=>{ /* affects next stage */ });
+  newStageBtn.addEventListener('click', newStage);
+  resetBtn.addEventListener('click', clearBoard);
+
+  toggleTTS.addEventListener('click', ()=>{ ttsEnabled = !ttsEnabled; updateTTSToggle(); if(ttsEnabled && taskEl.textContent) speak(taskEl.textContent); });
+  reReadBtn.addEventListener('click', ()=>{ if(ttsEnabled && taskEl.textContent) speak(taskEl.textContent); });
+  updateTTSToggle();
+
+  // init
+  buildGrid(N);
+  routeBar.textContent = "Trasa: (zostanie wylosowana po pierwszym etapie)";
+})();
+</script>
+</body>
+</html>
