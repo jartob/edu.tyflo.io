@@ -1,102 +1,215 @@
 <!DOCTYPE html>
-<html lang="pl"><head><meta charset="utf-8"/>
-<meta content="width=device-width,initial-scale=1" name="viewport"/>
-<title>Zajęcia 69 – Ułóż sylaby</title>
+<html lang="pl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Zajęcia 69 – Sylaby z obrazkiem</title>
+
 <style>
-:root{--accent:#00E0FF;--rad:14px}
+:root{--accent:#00E0FF;--rad:18px}
 *{box-sizing:border-box}
-html,body{height:100%}
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
-.wrap{max-width:1100px;margin:0 auto;padding:16px}
-h1{margin:0 0 8px;color:var(--accent);font-weight:900}
-.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0;overflow:hidden}
-.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
-label{display:block;margin-bottom:6px}
-select,button,input{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:800}
-button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
-.small{font-size:1rem;color:#ddd;margin:4px 0 0}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
-.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
-.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
-.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
-.big{font-size:3rem;font-weight:900;text-align:center}
-.good{outline:3px solid #0f8}
-.bad{outline:3px solid #f44}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.btn{border:2px solid var(--accent);border-radius:14px;padding:16px;font-weight:900;background:#000;cursor:pointer}
-</style></head><body><main class="wrap">
-<h1>🗣️ Zajęcia 69 – Ułóż sylaby w kolejności</h1><button id="speak69">🔈 Lektor</button>
-<section class="panel"><div class="row"><button class="primary" id="start">START</button><span class="small">Kliknij sylaby w poprawnej kolejności, by utworzyć wyraz.</span></div></section>
-<section class="panel">
-<div class="row" id="row"></div>
-<div class="stats"><div class="stat"><b>Postęp:</b> <span id="pos">0</span>/<span id="total">0</span></div><div class="stat"><b>Błędy:</b> <span id="err">0</span></div></div>
-</section>
+body{margin:0;font-family:system-ui,Segoe UI,Arial;background:#000;color:#fff}
+.wrap{max-width:1100px;margin:auto;padding:16px}
+h1{color:var(--accent);font-weight:900}
+
+.panel{
+border:2px solid var(--accent);
+border-radius:var(--rad);
+background:#0e0e0e;
+padding:16px;
+margin:14px 0;
+text-align:center
+}
+
+button,select{
+padding:18px 26px;
+border:3px dashed var(--accent);
+border-radius:22px;
+background:#000;
+color:#fff;
+font-weight:900;
+cursor:pointer;
+font-size:1.1rem
+}
+
+button.primary{
+border-style:solid;
+background:var(--accent);
+color:#000
+}
+
+.row{
+display:flex;
+gap:22px;
+flex-wrap:wrap;
+justify-content:center;
+align-items:center
+}
+
+.syllable{
+font-size:4.2rem;
+min-width:150px;
+padding:28px 34px;
+border:3px dashed var(--accent);
+border-radius:26px;
+background:#000;
+font-weight:900
+}
+
+.good{outline:6px solid #0f8}
+.bad{outline:6px solid #f44}
+
+.picture{font-size:6rem;margin-bottom:12px}
+
+.stats{
+display:flex;
+gap:30px;
+justify-content:center;
+margin-top:16px;
+font-size:1.3rem
+}
+
+.note{color:#9ef;font-size:1.1rem}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<h1>🗣️ Zajęcia 69 – Ułóż sylaby (seria)</h1>
+<button id="speak">🔈 Lektor – instrukcja</button>
+
+<div class="panel row">
+<select id="level">
+<option value="easy">ŁATWE (2 sylaby)</option>
+<option value="hard">TRUDNE (3–4 sylaby)</option>
+</select>
+<button class="primary" id="start">START (10 zadań)</button>
+</div>
+
+<div class="panel">
+<div class="picture" id="pic">❓</div>
+<div class="row" id="board"></div>
+
+<div class="stats">
+<div>Zadanie: <span id="round">0</span>/10</div>
+<div>Błędy: <span id="err">0</span></div>
+</div>
+</div>
+
+</div>
+
 <script>
+let voice = 'speechSynthesis' in window;
+function say(t){
+ if(!voice) return;
+ speechSynthesis.cancel();
+ const u=new SpeechSynthesisUtterance(t);
+ u.lang='pl-PL';
+ u.rate=0.85;
+ speechSynthesis.speak(u);
+}
 
-let voice=true; if(!('speechSynthesis' in window)) voice=false;
-function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
+// ===== BAZY DANYCH =====
 
-const words=[['MA','MA'],['KO','LO','RO','WY'],['RA','BA'],'LA','RY']; // fallback simple
-function pickWord(){
-  const list=[['MA','MA'],['KO','LO','RO','WY'],['LA','RY'],['PA','RA','SOL'],['SA','MO','CHÓD']];
-  return list[Math.floor(Math.random()*list.length)];
+const easyWords = [
+ {pic:'👩', syl:['MA','MA'], speak:'mama'},
+ {pic:'🐱', syl:['KO','TEK'], speak:'kotek'},
+ {pic:'🧸', syl:['MI','Ś'], speak:'miś'},
+ {pic:'🚗', syl:['AU','TO'], speak:'auto'},
+ {pic:'🐶', syl:['PI','ES'], speak:'pies'}
+];
+
+const hardWords = [
+ {pic:'🌂', syl:['PA','RA','SOL'], speak:'parasol'},
+ {pic:'🚗', syl:['SA','MO','CHÓD'], speak:'samochód'},
+ {pic:'☀️', syl:['SŁO','Ń','CE'], speak:'słońce'},
+ {pic:'🍎', syl:['JA','BŁ','KO'], speak:'jabłko'},
+ {pic:'📚', syl:['KSIĄ','Ż','KA'], speak:'książka'}
+];
+
+// ===== LOGIKA =====
+
+let base=[];
+let pool=[];
+let current=null;
+let seq=[], shuffled=[];
+let pos=0, err=0, round=0;
+const MAX=10;
+
+function shuffle(a){ return [...a].sort(()=>Math.random()-0.5); }
+
+function refillPool(){
+ pool = shuffle(base);
 }
-let seq=[], order=[], pos=0, err=0;
-function start(){
-  const R=document.getElementById('row'); R.innerHTML=''; seq=pickWord(); order=[...seq].sort(()=>Math.random()-0.5); pos=0; err=0;
-  document.getElementById('pos').textContent='0'; document.getElementById('total').textContent=seq.length; document.getElementById('err').textContent='0';
-  order.forEach(s=>{ const b=document.createElement('button'); b.className='btn'; b.textContent=s; b.onclick=()=>pick(b,s); R.appendChild(b); });
-  say('Ułóż wyraz z sylab');
+
+function startSeries(){
+ err=0; round=0;
+ document.getElementById('err').textContent=0;
+
+ const level=document.getElementById('level').value;
+ base = level==='easy' ? easyWords : hardWords;
+ refillPool();
+
+ nextRound();
 }
-function pick(b,s){
-  if(s===seq[pos]){ b.classList.add('good'); b.disabled=true; pos++; document.getElementById('pos').textContent=pos; if(pos>=seq.length) say('brawo'); }
-  else { err++; document.getElementById('err').textContent=err; b.classList.add('bad'); setTimeout(()=>b.classList.remove('bad'),300); say('spróbuj ponownie'); }
+
+function nextRound(){
+ if(round>=MAX){
+   say("Koniec ćwiczenia. Brawo.");
+   return;
+ }
+
+ if(pool.length===0){
+   refillPool(); // 🔁 odnawiamy pulę
+ }
+
+ round++;
+ document.getElementById('round').textContent=round;
+
+ current = pool.shift();
+ seq = current.syl;
+ shuffled = shuffle(seq);
+ pos=0;
+
+ document.getElementById('pic').textContent=current.pic;
+ const board=document.getElementById('board');
+ board.innerHTML='';
+
+ shuffled.forEach(s=>{
+   const b=document.createElement('button');
+   b.className='syllable';
+   b.textContent=s;
+   b.onclick=()=>pick(b,s);
+   board.appendChild(b);
+ });
+
+ say("Ułóż wyraz do obrazka");
 }
-document.getElementById('start').onclick=start;
+
+function pick(btn,syl){
+ if(syl===seq[pos]){
+   btn.classList.add('good');
+   btn.disabled=true;
+   pos++;
+   if(pos===seq.length){
+     say("Dobrze. To jest " + current.speak);
+     setTimeout(nextRound,1200);
+   }
+ } else {
+   err++;
+   document.getElementById('err').textContent=err;
+   btn.classList.add('bad');
+   setTimeout(()=>btn.classList.remove('bad'),300);
+   say("Spróbuj jeszcze raz");
+ }
+}
+
+document.getElementById('start').onclick=startSeries;
+document.getElementById('speak').onclick=()=>{
+ say("Popatrz na obrazek i ułóż wyraz z sylab");
+};
 </script>
-</main><script>
-    (function(){
-      function pickTaskText() {
-        var docTitle = document.title || "Zadanie 69";
-        // Try common selectors
-        var candidates = [];
-        var byIds = ['task','zadanie','instrukcja','instruction','opis','desc'];
-        byIds.forEach(function(id){ var el=document.getElementById(id); if(el) candidates.push(el.textContent.trim()); });
-        // By class
-        ['task','zadanie','instrukcja','instruction','opis','desc','note','hint'].forEach(function(c){
-          document.querySelectorAll('.'+c).forEach(function(el){ candidates.push(el.textContent.trim()); });
-        });
-        // Any paragraph with keywords
-        var keywords = /(Naciśnij|Wybierz|Znajdź|Kliknij|Ułóż|Przeciągnij|Połącz|Policz|Odczytaj|Wpisz|Klik|Zaznacz)/i;
-        Array.prototype.slice.call(document.querySelectorAll('p,li,div,span')).forEach(function(el){
-          var t=(el.textContent||'').trim();
-          if(t.length>=12 && t.length<=280 && keywords.test(t)) candidates.push(t);
-        });
-        // Fallback: first heading text
-        var h1 = document.querySelector('h1'); if(h1) candidates.push(h1.textContent.trim());
-        // Choose the longest sensible candidate, else title
-        candidates = candidates.filter(Boolean);
-        candidates.sort(function(a,b){ return b.length - a.length; });
-        var chosen = candidates[0] || docTitle;
-        // Clean excessive whitespace
-        chosen = chosen.replace(/\s+/g,' ').trim();
-        return chosen;
-      }
-      function initLektor(){
-        var btn = document.getElementById('speak69');
-        if(!btn) return;
-        btn.addEventListener('click', function(){
-          try{
-            window.speechSynthesis && window.speechSynthesis.cancel();
-            var text = pickTaskText();
-            var u = new SpeechSynthesisUtterance(text);
-            u.lang = 'pl-PL';
-            u.rate = 1; u.pitch = 1;
-            window.speechSynthesis ? speechSynthesis.speak(u) : alert('Lektor niedostępny.');
-          }catch(e){ alert('Lektor niedostępny.'); }
-        });
-      }
-      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initLektor); else initLektor();
-    })();
-    </script></body></html>
+
+</body>
+</html>
