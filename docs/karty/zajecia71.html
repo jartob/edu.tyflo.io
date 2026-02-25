@@ -1,87 +1,210 @@
 <!DOCTYPE html>
-<html lang="pl"><head><meta charset="utf-8"/>
-<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<html lang="pl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Zajęcia 71 – Policz gwiazdki</title>
+
 <style>
-:root{--accent:#00E0FF;--rad:14px}
+:root{
+  --accent:#00E0FF;
+  --rad:14px;
+}
+
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
-.wrap{max-width:1100px;margin:0 auto;padding:16px}
-h1{margin:0 0 8px;color:var(--accent);font-weight:900}
-.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0;overflow:hidden}
-.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
-label{display:block;margin-bottom:6px}
-select,button,input{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:800}
-button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
-.small{font-size:1rem;color:#ddd;margin:4px 0 0}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
-.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
-.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
-.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
-.big{font-size:3rem;font-weight:900;text-align:center}
-.good{outline:3px solid #0f8}
-.bad{outline:3px solid #f44}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.btn{border:2px solid var(--accent);border-radius:14px;padding:16px;font-weight:900;background:#000;cursor:pointer}
-</style><style>
-    .sq, .square, .cell, .box { min-width:48px; min-height:48px; }
-    .grid, .board, .matrix { grid-gap:8px; gap:8px; }
-    </style></head><body><main class="wrap">
-<h1>⭐ Zajęcia 71 – Policz gwiazdki</h1><button id="speak71">🔈 Lektor (polecenie)</button>
-<section class="panel"><div class="row"><button class="primary" id="start">START</button><span class="small">Policz, ile gwiazdek w siatce, i wybierz poprawną odpowiedź.</span></div></section>
+
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:#000;
+  color:#fff;
+}
+
+.wrap{
+  max-width:1100px;
+  margin:0 auto;
+  padding:16px;
+}
+
+h1{
+  margin:0 0 8px;
+  color:var(--accent);
+  font-weight:900;
+}
+
+.panel{
+  border:2px solid var(--accent);
+  border-radius:var(--rad);
+  background:#0e0e0e;
+  padding:12px;
+  margin:10px 0;
+}
+
+button{
+  padding:14px 18px;
+  background:#000;
+  color:#fff;
+  border:2px solid var(--accent);
+  border-radius:14px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+button.primary{
+  background:var(--accent);
+  color:#000;
+}
+
+.small{
+  font-size:1rem;
+  color:#ddd;
+}
+
+/* 🔹 SIATKA – LEKKO MNIEJSZE POLA */
+.board{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:8px;
+  margin-top:10px;
+}
+
+.cell{
+  border:2px dashed var(--accent);
+  border-radius:12px;
+  aspect-ratio:1/1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:1.8rem;   /* było większe */
+  font-weight:900;
+  background:#000;
+}
+
+/* 🔢 ODPOWIEDZI – WIĘKSZE CYFRY */
+#ans{
+  display:flex;
+  gap:14px;
+  flex-wrap:wrap;
+  margin-top:14px;
+}
+
+#ans button{
+  font-size:1.6rem;   /* POWIĘKSZONE CYFRY */
+  min-width:70px;
+  min-height:70px;
+}
+
+.stats{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:10px;
+  margin-top:14px;
+}
+
+.stat{
+  background:#0b0b0b;
+  border:1px solid #333;
+  border-radius:12px;
+  padding:10px;
+  color:#ddd;
+}
+</style>
+</head>
+
+<body>
+<main class="wrap">
+
+<h1>⭐ Zajęcia 71 – Policz gwiazdki</h1>
+<button id="speak71">🔈 Lektor (polecenie)</button>
+
 <section class="panel">
-<div class="board" id="board" style="grid-template-columns:repeat(6,1fr)"></div>
-<div class="row" id="ans" style="margin-top:10px"></div>
-<div class="stats"><div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div><div class="stat"><b>Błędy:</b> <span id="err">0</span></div></div>
+  <button class="primary" id="start">START</button>
+  <div class="small">
+    Policz, ile ⭐ gwiazdek jest w siatce i kliknij poprawną liczbę.
+  </div>
 </section>
+
+<section class="panel">
+  <div class="board" id="board"></div>
+  <div id="ans"></div>
+
+  <div class="stats">
+    <div class="stat"><b>Poprawne:</b> <span id="ok">0</span></div>
+    <div class="stat"><b>Błędy:</b> <span id="err">0</span></div>
+  </div>
+</section>
+
+</main>
+
 <script>
+let voice = 'speechSynthesis' in window;
 
-let voice=true; if(!('speechSynthesis' in window)) voice=false;
-function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
+function say(txt){
+  if(!voice) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(txt);
+  u.lang = 'pl-PL';
+  speechSynthesis.speak(u);
+}
 
-const pool=['●','■','▲','★']; let starCount=0, ok=0, err=0;
+const pool = ['●','■','▲','★'];
+let starCount = 0, ok = 0, err = 0;
+
 function build(){
-  const g=document.getElementById('board'); const a=document.getElementById('ans'); g.innerHTML=''; a.innerHTML='';
-  starCount=0; for(let i=0;i<24;i++){ const s=pool[Math.floor(Math.random()*pool.length)]; const b=document.createElement('div'); b.className='cell'; b.textContent=s; g.appendChild(b); if(s==='★') starCount++; }
-  const opts=new Set([starCount]); while(opts.size<4) opts.add(Math.floor(Math.random()*25));
-  [...opts].sort((x,y)=>x-y).forEach(v=>{ const bt=document.createElement('button'); bt.className='primary'; bt.textContent=String(v); bt.onclick=()=>pick(v); a.appendChild(bt); });
+  const board = document.getElementById('board');
+  const ans = document.getElementById('ans');
+  board.innerHTML = '';
+  ans.innerHTML = '';
+  starCount = 0;
+
+  for(let i=0;i<24;i++){
+    const s = pool[Math.floor(Math.random()*pool.length)];
+    const d = document.createElement('div');
+    d.className = 'cell';
+    d.textContent = s;
+    board.appendChild(d);
+    if(s === '★') starCount++;
+  }
+
+  const opts = new Set([starCount]);
+  while(opts.size < 4){
+    opts.add(Math.floor(Math.random()*25));
+  }
+
+  [...opts].sort((a,b)=>a-b).forEach(v=>{
+    const b = document.createElement('button');
+    b.className = 'primary';
+    b.textContent = v;
+    b.onclick = ()=>pick(v);
+    ans.appendChild(b);
+  });
 }
+
 function pick(v){
-  if(v===starCount){ ok++; say('dobrze'); } else { err++; say('źle'); }
-  document.getElementById('ok').textContent=ok; document.getElementById('err').textContent=err; setTimeout(build,600);
+  if(v === starCount){
+    ok++;
+    say('Dobrze');
+  }else{
+    err++;
+    say('Źle');
+  }
+  document.getElementById('ok').textContent = ok;
+  document.getElementById('err').textContent = err;
+  setTimeout(build, 700);
 }
-document.getElementById('start').onclick=()=>{ ok=0;err=0; document.getElementById('ok').textContent='0'; document.getElementById('err').textContent='0'; build(); };
+
+document.getElementById('start').onclick = ()=>{
+  ok = 0; err = 0;
+  document.getElementById('ok').textContent = '0';
+  document.getElementById('err').textContent = '0';
+  build();
+};
+
+document.getElementById('speak71').onclick = ()=>{
+  say('Policz, ile gwiazdek jest w siatce i wybierz poprawną odpowiedź.');
+};
 </script>
-</main><script>
-    (function(){
-      function pickTaskText(){
-        var docTitle = document.title || "Zadanie 71";
-        var candidates = [];
-        var ids = ['task','zadanie','instrukcja','instruction','opis','desc'];
-        ids.forEach(function(id){ var el=document.getElementById(id); if(el) candidates.push(el.textContent.trim()); });
-        var classes = ['task','zadanie','instrukcja','instruction','opis','desc','note','hint','polecenie'];
-        classes.forEach(function(c){ document.querySelectorAll('.'+c).forEach(function(el){ candidates.push(el.textContent.trim()); }); });
-        var kw = /(Naciśnij|Wybierz|Znajdź|Kliknij|Ułóż|Przeciągnij|Połącz|Policz|Odczytaj|Wpisz|Zaznacz|Zapamiętaj)/i;
-        Array.prototype.slice.call(document.querySelectorAll('p,li,div,span')).forEach(function(el){
-          var t=(el.textContent||'').trim();
-          if(t.length>=10 && t.length<=300 && kw.test(t)) candidates.push(t);
-        });
-        var h1 = document.querySelector('h1'); if(h1) candidates.push(h1.textContent.trim());
-        candidates = candidates.filter(Boolean);
-        candidates.sort(function(a,b){ return b.length - a.length; });
-        var chosen = candidates[0] || docTitle;
-        return chosen.replace(/\s+/g,' ').trim();
-      }
-      function init(){
-        var b=document.getElementById('speak71');
-        if(!b) return;
-        b.addEventListener('click', function(){
-          try{ speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(pickTaskText()); u.lang='pl-PL'; u.rate=1; u.pitch=1; speechSynthesis.speak(u); }
-          catch(e){ alert('Lektor niedostępny.'); }
-        });
-      }
-      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
-    })();
-    </script></body></html>
+
+</body>
+</html>
