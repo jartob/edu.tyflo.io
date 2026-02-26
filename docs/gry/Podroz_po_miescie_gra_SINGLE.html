@@ -2,16 +2,19 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<title>Podróż po mieście / safari</title>
+<title>Podróż po mieście</title>
+
 <style>
 body {
     font-family: Arial, sans-serif;
     text-align: center;
-    background: #f4f4f4;
+    background: #eef4ff;
+    margin: 0;
+    padding: 20px;
 }
 
 h1 {
-    margin-top: 20px;
+    font-size: 34px;
 }
 
 #question {
@@ -27,9 +30,9 @@ h1 {
 }
 
 button {
+    font-size: 22px;
     padding: 15px 25px;
-    font-size: 20px;
-    border-radius: 10px;
+    border-radius: 12px;
     border: none;
     cursor: pointer;
     background-color: #4CAF50;
@@ -45,18 +48,26 @@ button:hover {
     margin-top: 25px;
     font-size: 20px;
 }
+
+#restart {
+    margin-top: 30px;
+    display: none;
+    background-color: #ff9800;
+}
 </style>
 </head>
 
 <body>
 
-<h1>Gra logiczna</h1>
+<h1>Podróż po mieście</h1>
 
 <div id="question"></div>
 
 <div class="buttons" id="answers"></div>
 
 <div id="info"></div>
+
+<button id="restart" onclick="restartGame()">Zagraj ponownie</button>
 
 <script>
 
@@ -65,37 +76,44 @@ let locked = false;
 
 const levels = [
     {
-        question: "Lew chce się napić. Gdzie pójdzie?",
-        correct: "Wodopój",
-        options: ["Las", "Wodopój", "Góra"]
+        question: "Wychodzisz z domu. Dokąd najpierw pójdziesz?",
+        correct: "Przystanek",
+        options: ["Sklep", "Przystanek", "Park"]
     },
     {
-        question: "Przy wodopoju pojawia się...",
-        correct: "Żyrafa",
-        options: ["Samochód", "Żyrafa", "Dom"]
+        question: "Z przystanku jedziesz do...",
+        correct: "Szkoły",
+        options: ["Szkoły", "Lasu", "Plaży"]
     },
     {
-        question: "Żyrafa spotyka...",
-        correct: "Słonia",
-        options: ["Słonia", "Traktor", "Pociąg"]
+        question: "Po szkole idziesz do...",
+        correct: "Sklepu",
+        options: ["Lotniska", "Sklepu", "ZOO"]
     },
     {
-        question: "Słoń idzie do...",
-        correct: "Rzeki",
-        options: ["Rzeki", "Sklepu", "Bloku"]
+        question: "Ze sklepu udajesz się do...",
+        correct: "Parku",
+        options: ["Szpitala", "Parku", "Fabryki"]
     },
     {
-        question: "Przy rzece jest...",
-        correct: "Krokodyl",
-        options: ["Krokodyl", "Autobus", "Rower"]
+        question: "Na koniec wracasz do...",
+        correct: "Domu",
+        options: ["Domu", "Stadionu", "Urzędu"]
     }
 ];
 
+function shuffle(array) {
+    return array.sort(() => Math.random() - 0.5);
+}
+
 function loadLevel() {
+
     if (currentLevel >= levels.length) {
-        document.getElementById("question").innerHTML = "🎉 Gratulacje! Koniec gry!";
+        document.getElementById("question").innerHTML =
+            "🎉 Gratulacje! Ukończyłeś podróż po mieście!";
         document.getElementById("answers").innerHTML = "";
         document.getElementById("info").innerHTML = "";
+        document.getElementById("restart").style.display = "inline-block";
         return;
     }
 
@@ -103,12 +121,13 @@ function loadLevel() {
 
     const level = levels[currentLevel];
     document.getElementById("question").innerText = level.question;
-    document.getElementById("info").innerText = "Poziom " + (currentLevel + 1) + " / " + levels.length;
+    document.getElementById("info").innerText =
+        "Etap " + (currentLevel + 1) + " z " + levels.length;
 
     const answersDiv = document.getElementById("answers");
     answersDiv.innerHTML = "";
 
-    level.options.forEach(option => {
+    shuffle(level.options).forEach(option => {
         const btn = document.createElement("button");
         btn.innerText = option;
         btn.onclick = () => checkAnswer(option);
@@ -133,6 +152,12 @@ function checkAnswer(answer) {
         document.getElementById("info").innerText = "❌ Spróbuj ponownie";
         locked = false;
     }
+}
+
+function restartGame() {
+    currentLevel = 0;
+    document.getElementById("restart").style.display = "none";
+    loadLevel();
 }
 
 loadLevel();
