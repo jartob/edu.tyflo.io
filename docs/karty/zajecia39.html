@@ -5,193 +5,249 @@
 <title>Karta 39 – Koncentracja uwagi</title>
 
 <style>
+:root{
+  --accent:#00E0FF;
+  --bg:#000;
+  --fg:#fff;
+  --ok:#14f195;
+  --bad:#ff4d4f;
+}
+
+*{box-sizing:border-box}
+
 body{
-    font-family: Arial, sans-serif;
-    background:#eef4ff;
-    text-align:center;
-    margin:0;
-    padding:20px;
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--fg);
+  text-align:center;
 }
-h1{font-size:32px;}
-#instruction{
-    font-size:26px;
-    font-weight:bold;
-    margin:15px 0;
+
+.wrap{
+  max-width:900px;
+  margin:0 auto;
+  padding:16px;
 }
-#target{
-    font-size:48px;
-    margin:15px 0;
-    color:#1a73e8;
+
+h1{
+  margin:0 0 10px;
+  color:var(--accent);
+  font-weight:900;
+  font-size:32px;
 }
+
 .controls{
-    display:flex;
-    justify-content:center;
-    gap:10px;
-    flex-wrap:wrap;
-    margin-bottom:20px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  justify-content:center;
+  margin:10px 0 20px;
 }
+
 select,button{
-    font-size:18px;
-    padding:8px 14px;
-    border-radius:10px;
-    border:2px solid #4CAF50;
-    cursor:pointer;
+  padding:10px 14px;
+  font-size:18px;
+  font-weight:800;
+  border-radius:12px;
+  border:2px solid var(--accent);
+  background:#000;
+  color:#fff;
+  cursor:pointer;
 }
+
+button.primary{
+  background:var(--accent);
+  color:#000;
+}
+
+#instruction{
+  font-size:26px;
+  margin:10px 0;
+  font-weight:800;
+}
+
+#target{
+  font-size:52px;
+  margin:10px 0 20px;
+  color:var(--accent);
+  font-weight:900;
+}
+
 .grid{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:15px;
-    max-width:420px;
-    margin:0 auto;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  max-width:420px;
+  margin:0 auto;
 }
+
 .cell{
-    background:#fff;
-    border:2px solid #4CAF50;
-    border-radius:12px;
-    font-size:34px;
-    padding:25px 0;
-    cursor:pointer;
+  border:2px dashed var(--accent);
+  border-radius:14px;
+  font-size:34px;
+  padding:24px 0;
+  cursor:pointer;
+  user-select:none;
 }
-#info{
-    font-size:22px;
-    margin-top:25px;
+
+.cell:hover{
+  background:#111;
 }
+
 .disabled{
-    pointer-events:none;
-    opacity:0.6;
+  pointer-events:none;
+  opacity:.6;
+}
+
+#info{
+  font-size:22px;
+  margin-top:20px;
+}
+
+.summary{
+  font-size:26px;
+  margin-top:30px;
+  font-weight:900;
 }
 </style>
 </head>
 
 <body>
+<div class="wrap">
 
 <h1>Karta 39 – Koncentracja uwagi</h1>
 
 <div class="controls">
-    <select id="mode">
-        <option value="numbers">Cyfry</option>
-        <option value="letters">Litery</option>
-        <option value="syllables">Sylaby</option>
-    </select>
+  <select id="mode">
+    <option value="numbers">Cyfry</option>
+    <option value="letters">Litery</option>
+    <option value="syllables">Sylaby</option>
+  </select>
 
-    <select id="level">
-        <option value="easy">Poziom łatwy</option>
-        <option value="hard">Poziom trudny</option>
-    </select>
+  <select id="level">
+    <option value="easy">Poziom łatwy</option>
+    <option value="hard">Poziom trudny</option>
+  </select>
 
-    <button id="startBtn">START</button>
-    <button id="speakBtn">🔈 Lektor</button>
+  <button class="primary" id="startBtn">START</button>
+  <button id="speakBtn">🔈 Lektor</button>
 </div>
 
 <div id="instruction">Kliknij START, aby rozpocząć.</div>
 <div id="target"></div>
+
 <div class="grid disabled" id="grid"></div>
+
 <div id="info"></div>
+<div id="summary"></div>
+
+</div>
 
 <script>
-let round = 0;
-const maxRounds = 8;
-let correctItem = "";
-let locked = true;
+let round=0;
+let errors=0;
+const maxRounds=8;
+let correctItem="";
+let locked=true;
 
-const lettersEasy = ["A","O","E","I","U","L","M","T"];
-const lettersHard = ["B","D","P","T","M","N","K","G","R","S"];
+const lettersEasy=["A","O","E","I","U","L","M","T"];
+const lettersHard=["B","D","P","T","M","N","K","G","R","S"];
 
-const syllablesEasy = ["MA","LA","TA","PA","BA","KO","NO","MI"];
-const syllablesHard = ["BRA","KRA","SZA","PRA","TRA","GRA","STR","CHR"];
+const syllablesEasy=["MA","LA","TA","PA","BA","KO","NO","MI"];
+const syllablesHard=["BRA","KRA","SZA","PRA","TRA","GRA","STR","CHR"];
 
 function speak(text){
-    if(!('speechSynthesis' in window)) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "pl-PL";
-    u.rate = 0.85;
-    speechSynthesis.speak(u);
+  if(!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="pl-PL";
+  u.rate=0.85;
+  speechSynthesis.speak(u);
 }
 
-function shuffle(arr){
-    return arr.sort(()=>Math.random()-0.5);
-}
+function shuffle(a){ return a.sort(()=>Math.random()-0.5); }
 
 function startGame(){
-    round = 0;
-    nextRound();
+  round=0;
+  errors=0;
+  document.getElementById("summary").innerHTML="";
+  nextRound();
 }
 
 function nextRound(){
-    if(round >= maxRounds){
-        document.getElementById("grid").innerHTML="";
-        document.getElementById("grid").classList.add("disabled");
-        document.getElementById("target").innerHTML="";
-        document.getElementById("instruction").innerHTML =
-            "🎉 Koniec ćwiczenia. Wykonano " + maxRounds + " prób.";
-        speak("Koniec ćwiczenia");
-        return;
-    }
+  if(round>=maxRounds){
+    document.getElementById("grid").innerHTML="";
+    document.getElementById("grid").classList.add("disabled");
+    document.getElementById("target").innerHTML="";
+    document.getElementById("instruction").innerHTML="🎉 Koniec ćwiczenia";
+    document.getElementById("summary").innerHTML=
+      `Wynik: ${maxRounds-errors} / ${maxRounds}<br>Błędy: ${errors}`;
+    speak("Koniec ćwiczenia");
+    return;
+  }
 
-    locked = false;
-    round++;
+  locked=false;
+  round++;
 
-    const mode = document.getElementById("mode").value;
-    const level = document.getElementById("level").value;
-    let pool = [];
+  const mode=document.getElementById("mode").value;
+  const level=document.getElementById("level").value;
+  let pool=[];
 
-    if(mode==="numbers"){
-        const max = level==="easy" ? 9 : 20;
-        pool = Array.from({length:max},(_,i)=>i+1);
-    }
-    if(mode==="letters"){
-        pool = level==="easy" ? lettersEasy : lettersHard;
-    }
-    if(mode==="syllables"){
-        pool = level==="easy" ? syllablesEasy : syllablesHard;
-    }
+  if(mode==="numbers"){
+    const max=level==="easy"?9:20;
+    pool=[...Array(max).keys()].map(i=>i+1);
+  }
+  if(mode==="letters"){
+    pool=level==="easy"?lettersEasy:lettersHard;
+  }
+  if(mode==="syllables"){
+    pool=level==="easy"?syllablesEasy:syllablesHard;
+  }
 
-    correctItem = pool[Math.floor(Math.random()*pool.length)];
+  correctItem=pool[Math.floor(Math.random()*pool.length)];
 
-    document.getElementById("instruction").innerHTML = "Odnajdź:";
-    document.getElementById("target").innerHTML = correctItem;
-    document.getElementById("info").innerHTML =
-        "Próba " + round + " z " + maxRounds;
+  document.getElementById("instruction").innerHTML="Odnajdź:";
+  document.getElementById("target").innerHTML=correctItem;
+  document.getElementById("info").innerHTML=
+    `Próba ${round} z ${maxRounds}`;
 
-    let items=[correctItem];
-    while(items.length<8){
-        const r=pool[Math.floor(Math.random()*pool.length)];
-        if(!items.includes(r)) items.push(r);
-    }
+  let items=[correctItem];
+  while(items.length<8){
+    const r=pool[Math.floor(Math.random()*pool.length)];
+    if(!items.includes(r)) items.push(r);
+  }
 
-    shuffle(items);
+  shuffle(items);
 
-    const grid=document.getElementById("grid");
-    grid.innerHTML="";
-    grid.classList.remove("disabled");
+  const grid=document.getElementById("grid");
+  grid.innerHTML="";
+  grid.classList.remove("disabled");
 
-    items.forEach(el=>{
-        const d=document.createElement("div");
-        d.className="cell";
-        d.innerText=el;
-        d.onclick=()=>check(el);
-        grid.appendChild(d);
-    });
+  items.forEach(el=>{
+    const d=document.createElement("div");
+    d.className="cell";
+    d.textContent=el;
+    d.onclick=()=>check(el);
+    grid.appendChild(d);
+  });
 
-    speak("Znajdź " + correctItem);
+  speak("Znajdź " + correctItem);
 }
 
 function check(val){
-    if(locked) return;
-
-    if(val===correctItem){
-        locked=true;
-        document.getElementById("info").innerHTML="✔ Dobrze!";
-        setTimeout(nextRound,700);
-    }else{
-        document.getElementById("info").innerHTML="❌ Spróbuj ponownie";
-    }
+  if(locked) return;
+  if(val===correctItem){
+    locked=true;
+    document.getElementById("info").innerHTML="✔ Dobrze!";
+    setTimeout(nextRound,700);
+  }else{
+    errors++;
+    document.getElementById("info").innerHTML="❌ Spróbuj ponownie";
+  }
 }
 
 document.getElementById("startBtn").onclick=startGame;
 document.getElementById("speakBtn").onclick=()=>speak("Znajdź " + correctItem);
-
 </script>
 
 </body>
