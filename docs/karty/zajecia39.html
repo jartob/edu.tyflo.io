@@ -1,62 +1,198 @@
-<!DOCTYPE html><html lang="pl"><head><meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Zajęcia 39 – Skanowanie liczb</title>
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Karta 39 – Koncentracja uwagi</title>
+
 <style>
-:root{--accent:#00E0FF;--rad:14px}
-*{box-sizing:border-box}
-html,body{height:100%}
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#000;color:#fff}
-.wrap{max-width:1100px;margin:0 auto;padding:16px}
-h1{margin:0 0 8px;color:var(--accent);font-weight:900}
-.panel{border:2px solid var(--accent);border-radius:var(--rad);background:#0e0e0e;padding:12px;margin:10px 0}
-.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end}
-label{display:block;margin-bottom:6px}
-select,button{padding:10px 12px;background:#000;color:#fff;border:2px solid var(--accent);border-radius:12px;font-weight:800}
-button.primary{background:var(--accent);color:#000;border-color:var(--accent);cursor:pointer}
-.small{font-size:1rem;color:#ddd;margin:4px 0 0}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
-.stat{background:#0b0b0b;border:1px solid #333;border-radius:12px;padding:8px;color:#ddd}
-.board{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));margin-top:10px}
-.cell{border:2px dashed var(--accent);border-radius:12px;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;cursor:pointer;background:#000}
-.good{outline:3px solid #0f8}
-.bad{outline:3px solid #f44}
-kbd{border:2px solid #555;padding:2px 6px;border-radius:6px;background:#111}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.color{width:88px;height:48px;border-radius:10px;border:2px solid var(--accent)}
-.target{width:110px;height:110px;border:3px solid var(--accent);border-radius:16px;margin:10px auto;display:flex;align-items:center;justify-content:center;font-size:2rem}
-.area{position:relative;height:280px;border:2px solid var(--accent);border-radius:14px;overflow:hidden;margin-top:10px}
-.mover{position:absolute;width:36px;height:36px;border-radius:50%;border:3px solid var(--accent);display:flex;align-items:center;justify-content:center;left:0;top:40%}
-.hot{position:absolute;border:3px dashed #0f8;border-radius:12px;width:120px;height:120px;right:20px;top:80px}
-.four{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
-.btn4{height:90px;border:2px solid var(--accent);border-radius:14px;font-size:1.6rem}
-.btn4.on{background:#062a2f}
-</style></head><body><main class="wrap">
-
-<h1>🔎 Zajęcia 39 – Skanowanie liczb</h1>
-<section class="panel">
-  <div class="controls"><div><label for="gridN">Liczba pól</label><select id="gridN"><option>16</option><option selected>20</option><option>24</option></select></div>
-  <div class="row"><button class="primary" id="start">START</button><span class="small">Kliknij wszystkie pola z liczbą <b id="targetNum">–</b>.</span></div></div>
-</section>
-<section class="panel"><div id="board" class="board"></div>
-  <div class="stats"><div class="stat"><b>Pozostało:</b> <span id="left">0</span></div><div class="stat"><b>Błędy:</b> <span id="err">0</span></div></div>
-</section>
-<script>
-
-let voice=true; if(!('speechSynthesis' in window)) voice=false;
-function say(t){ if(!voice) return; try{speechSynthesis.cancel();}catch(_ ){} const u=new SpeechSynthesisUtterance(t); u.lang='pl-PL'; speechSynthesis.speak(u);}
-
-let N=20,target=0,left=0,err=0; const $=s=>document.querySelector(s);
-function build(){ const g=$('#board'); g.innerHTML=''; left=0; const nums=[];
-  for(let i=0;i<N;i++) nums.push(1+Math.floor(Math.random()*9));
-  target=nums[Math.floor(Math.random()*nums.length)]; document.getElementById('targetNum').textContent=target;
-  nums.forEach(v=>{ const b=document.createElement('button'); b.className='cell'; b.textContent=String(v);
-    if(v===target) left++;
-    b.onclick=()=>{ if(b.disabled) return; if(Number(b.textContent)===target){ b.classList.add('good'); left--; b.disabled=true; say('dobrze'); } else { err++; b.classList.add('bad'); say('źle'); setTimeout(()=>b.classList.remove('bad'),400); } document.getElementById('left').textContent=left; document.getElementById('err').textContent=err; if(left<=0) say('Koniec'); };
-    g.appendChild(b);
-  });
-  document.getElementById('left').textContent=left; document.getElementById('err').textContent='0';
+body{
+    font-family: Arial, sans-serif;
+    background:#eef4ff;
+    text-align:center;
+    margin:0;
+    padding:20px;
 }
-document.getElementById('start').onclick=()=>{ N=Number(document.getElementById('gridN').value); err=0; build(); };
+h1{font-size:32px;}
+#instruction{
+    font-size:26px;
+    font-weight:bold;
+    margin:15px 0;
+}
+#target{
+    font-size:48px;
+    margin:15px 0;
+    color:#1a73e8;
+}
+.controls{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+}
+select,button{
+    font-size:18px;
+    padding:8px 14px;
+    border-radius:10px;
+    border:2px solid #4CAF50;
+    cursor:pointer;
+}
+.grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:15px;
+    max-width:420px;
+    margin:0 auto;
+}
+.cell{
+    background:#fff;
+    border:2px solid #4CAF50;
+    border-radius:12px;
+    font-size:34px;
+    padding:25px 0;
+    cursor:pointer;
+}
+#info{
+    font-size:22px;
+    margin-top:25px;
+}
+.disabled{
+    pointer-events:none;
+    opacity:0.6;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Karta 39 – Koncentracja uwagi</h1>
+
+<div class="controls">
+    <select id="mode">
+        <option value="numbers">Cyfry</option>
+        <option value="letters">Litery</option>
+        <option value="syllables">Sylaby</option>
+    </select>
+
+    <select id="level">
+        <option value="easy">Poziom łatwy</option>
+        <option value="hard">Poziom trudny</option>
+    </select>
+
+    <button id="startBtn">START</button>
+    <button id="speakBtn">🔈 Lektor</button>
+</div>
+
+<div id="instruction">Kliknij START, aby rozpocząć.</div>
+<div id="target"></div>
+<div class="grid disabled" id="grid"></div>
+<div id="info"></div>
+
+<script>
+let round = 0;
+const maxRounds = 8;
+let correctItem = "";
+let locked = true;
+
+const lettersEasy = ["A","O","E","I","U","L","M","T"];
+const lettersHard = ["B","D","P","T","M","N","K","G","R","S"];
+
+const syllablesEasy = ["MA","LA","TA","PA","BA","KO","NO","MI"];
+const syllablesHard = ["BRA","KRA","SZA","PRA","TRA","GRA","STR","CHR"];
+
+function speak(text){
+    if(!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "pl-PL";
+    u.rate = 0.85;
+    speechSynthesis.speak(u);
+}
+
+function shuffle(arr){
+    return arr.sort(()=>Math.random()-0.5);
+}
+
+function startGame(){
+    round = 0;
+    nextRound();
+}
+
+function nextRound(){
+    if(round >= maxRounds){
+        document.getElementById("grid").innerHTML="";
+        document.getElementById("grid").classList.add("disabled");
+        document.getElementById("target").innerHTML="";
+        document.getElementById("instruction").innerHTML =
+            "🎉 Koniec ćwiczenia. Wykonano " + maxRounds + " prób.";
+        speak("Koniec ćwiczenia");
+        return;
+    }
+
+    locked = false;
+    round++;
+
+    const mode = document.getElementById("mode").value;
+    const level = document.getElementById("level").value;
+    let pool = [];
+
+    if(mode==="numbers"){
+        const max = level==="easy" ? 9 : 20;
+        pool = Array.from({length:max},(_,i)=>i+1);
+    }
+    if(mode==="letters"){
+        pool = level==="easy" ? lettersEasy : lettersHard;
+    }
+    if(mode==="syllables"){
+        pool = level==="easy" ? syllablesEasy : syllablesHard;
+    }
+
+    correctItem = pool[Math.floor(Math.random()*pool.length)];
+
+    document.getElementById("instruction").innerHTML = "Odnajdź:";
+    document.getElementById("target").innerHTML = correctItem;
+    document.getElementById("info").innerHTML =
+        "Próba " + round + " z " + maxRounds;
+
+    let items=[correctItem];
+    while(items.length<8){
+        const r=pool[Math.floor(Math.random()*pool.length)];
+        if(!items.includes(r)) items.push(r);
+    }
+
+    shuffle(items);
+
+    const grid=document.getElementById("grid");
+    grid.innerHTML="";
+    grid.classList.remove("disabled");
+
+    items.forEach(el=>{
+        const d=document.createElement("div");
+        d.className="cell";
+        d.innerText=el;
+        d.onclick=()=>check(el);
+        grid.appendChild(d);
+    });
+
+    speak("Znajdź " + correctItem);
+}
+
+function check(val){
+    if(locked) return;
+
+    if(val===correctItem){
+        locked=true;
+        document.getElementById("info").innerHTML="✔ Dobrze!";
+        setTimeout(nextRound,700);
+    }else{
+        document.getElementById("info").innerHTML="❌ Spróbuj ponownie";
+    }
+}
+
+document.getElementById("startBtn").onclick=startGame;
+document.getElementById("speakBtn").onclick=()=>speak("Znajdź " + correctItem);
+
 </script>
 
-</main></body></html>
+</body>
+</html>
