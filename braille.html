@@ -72,7 +72,7 @@ function render(){
     app.innerHTML = "<h3>🟢 Nauka</h3><p>Kliknij literę (usłyszysz ją):</p>";
     Object.keys(braille).forEach(l=>{
       app.innerHTML += `
-        <button onclick="speak('${l}'); alert('${l} = ${braille[l]}')">${l}</button>
+        <button onclick="showBig('${l}')"</button>
       `;
     });
   }
@@ -148,6 +148,15 @@ function check(ans){
     speak("Spróbuj jeszcze raz");
     alert("❌ Spróbuj jeszcze raz");
   }
+}
+function showBig(letter){
+  speak(letter);
+  document.getElementById("app").innerHTML = `
+    <h3>🟢 Nauka</h3>
+    <div style="font-size:80px; margin:20px">${letter}</div>
+    <div style="font-size:80px; margin:20px">${braille[letter]}</div>
+    <button onclick="render()">⬅️ Wróć</button>
+  `;
 }
 
 render();
