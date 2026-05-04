@@ -1,1 +1,158 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Nauka Braille’a</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial;
+  max-width: 700px;
+  margin: auto;
+  padding: 10px;
+  text-align: center;
+}
+button {
+  margin: 5px;
+  padding: 10px;
+  font-size: 18px;
+}
+.big {
+  font-size: 40px;
+}
+textarea {
+  width: 100%;
+  height: 200px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>📘 Nauka alfabetu Braille’a</h2>
+
+<button onclick="showMode('learn')">Nauka</button>
+<button onclick="showMode('practice')">Ćwiczenia</button>
+<button onclick="showMode('quiz')">Quiz</button>
+<button onclick="showMode('wordwall')">Wordwall</button>
+
+<hr>
+
+<div id="app"></div>
+
+<script>
+const braille = {
+A:"⠁",B:"⠃",C:"⠉",D:"⠙",E:"⠑",F:"⠋",G:"⠛",H:"⠓",I:"⠊",J:"⠚",
+K:"⠅",L:"⠇",M:"⠍",N:"⠝",O:"⠕",P:"⠏",Q:"⠟",R:"⠗",S:"⠎",T:"⠞",
+U:"⠥",V:"⠧",W:"⠺",X:"⠭",Y:"⠽",Z:"⠵"
+};
+
+let currentMode = "learn";
+let quizLetter = "";
+
+// 🔊 LEKTOR
+function speak(text){
+  const msg = new SpeechSynthesisUtterance();
+  msg.text = text;
+  msg.lang = "pl-PL";
+  msg.rate = 0.9;
+  window.speechSynthesis.speak(msg);
+}
+
+function showMode(mode){
+  currentMode = mode;
+  render();
+}
+
+function render(){
+  const app = document.getElementById("app");
+
+  if(currentMode === "learn"){
+    app.innerHTML = "<h3>🟢 Nauka</h3><p>Kliknij literę (usłyszysz ją):</p>";
+    Object.keys(braille).forEach(l=>{
+      app.innerHTML += `
+        <button onclick="speak('${l}'); alert('${l} = ${braille[l]}')">${l}</button>
+      `;
+    });
+  }
+
+  if(currentMode === "practice"){
+    app.innerHTML = "<h3>🟡 Ćwiczenia</h3><p>Kliknij i odsłoń:</p>";
+    Object.keys(braille).forEach(l=>{
+      app.innerHTML += `
+        <button onclick="speak('${l}'); this.innerHTML='${l} = ${braille[l]}'">${l}</button>
+      `;
+    });
+  }
+
+  if(currentMode === "quiz"){
+    const keys = Object.keys(braille);
+    quizLetter = keys[Math.floor(Math.random()*keys.length)];
+
+    app.innerHTML = `
+      <h3>🔵 Quiz</h3>
+      <p>Co to za litera?</p>
+      <div class="big">${braille[quizLetter]}</div>
+    `;
+
+    speak("Znajdź literę");
+
+    keys.slice(0,5).forEach(l=>{
+      app.innerHTML += `<button onclick="check('${l}')">${l}</button>`;
+    });
+  }
+
+  if(currentMode === "wordwall"){
+    app.innerHTML = `
+      <h3>🟣 Wordwall – zestaw</h3>
+      <p>Skopiuj i wklej do Wordwall:</p>
+      <textarea>
+A - ⠁
+B - ⠃
+C - ⠉
+D - ⠙
+E - ⠑
+F - ⠋
+G - ⠛
+H - ⠓
+I - ⠊
+J - ⠚
+K - ⠅
+L - ⠇
+M - ⠍
+N - ⠝
+O - ⠕
+P - ⠏
+Q - ⠟
+R - ⠗
+S - ⠎
+T - ⠞
+U - ⠥
+V - ⠧
+W - ⠺
+X - ⠭
+Y - ⠽
+Z - ⠵
+      </textarea>
+    `;
+  }
+}
+
+function check(ans){
+  speak(ans);
+  if(ans === quizLetter){
+    speak("Dobrze");
+    alert("✅ Dobrze!");
+  } else {
+    speak("Spróbuj jeszcze raz");
+    alert("❌ Spróbuj jeszcze raz");
+  }
+}
+
+render();
+</script>
+
+</body>
+</html>
 
