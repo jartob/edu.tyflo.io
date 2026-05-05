@@ -132,8 +132,40 @@ function render(){
 
     speak("Znajdź literę");
 
-    keys.slice(0,5).forEach(l=>{
-      app.innerHTML += `<button onclick="check('${l}')">${l}</button>`;
+    if(currentMode === "quiz"){
+  const keys = Object.keys(braille);
+
+  // losujemy poprawną literę
+  quizLetter = keys[Math.floor(Math.random()*keys.length)];
+
+  // tworzymy odpowiedzi
+  let options = [quizLetter];
+
+  // dodajemy 3 inne (różne)
+  while(options.length < 4){
+    let rand = keys[Math.floor(Math.random()*keys.length)];
+    if(!options.includes(rand)){
+      options.push(rand);
+    }
+  }
+
+  // mieszamy kolejność
+  options.sort(() => Math.random() - 0.5);
+
+  app.innerHTML = `
+    <h3>🔵 Quiz</h3>
+    <p>Co to za litera?</p>
+    <div style="font-size:60px; margin:20px">${braille[quizLetter]}</div>
+  `;
+
+  options.forEach(l=>{
+    app.innerHTML += `
+      <button style="font-size:20px; margin:10px;" onclick="check('${l}')">
+        ${l}
+      </button>
+    `;
+  });
+}
     });
   }
 
