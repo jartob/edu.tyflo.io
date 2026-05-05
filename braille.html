@@ -50,12 +50,21 @@ K:"⠅",L:"⠇",M:"⠍",N:"⠝",O:"⠕",P:"⠏",Q:"⠟",R:"⠗",S:"⠎",T:"⠞",
 U:"⠥",V:"⠧",W:"⠺",X:"⠭",Y:"⠽",Z:"⠵"
 };
 
+// 🔊 POPRAWNA WYMOWA
+const speechMap = {
+  A:"a", B:"be", C:"ce", D:"de", E:"e", F:"ef", G:"gie", H:"ha", I:"i", J:"jot",
+  K:"ka", L:"el", M:"em", N:"en", O:"o", P:"pe", Q:"ku", R:"er", S:"es", T:"te",
+  U:"u", V:"wu", W:"wu", X:"iks", Y:"igrek", Z:"zet"
+};
+
 let currentMode = "learn";
 let quizLetter = "";
 
 // 🔊 LEKTOR
 function speak(text){
-  const msg = new SpeechSynthesisUtterance(text);
+  const msg = new SpeechSynthesisUtterance(
+    speechMap[text] ? speechMap[text] : text
+  );
   msg.lang = "pl-PL";
   window.speechSynthesis.speak(msg);
 }
@@ -79,7 +88,7 @@ function showBig(letter){
 function render(){
   const app = document.getElementById("app");
 
-  // 🔹 NAUKA (litery na sztywno – brak kratek)
+  // 🔹 NAUKA
   if(currentMode === "learn"){
     app.innerHTML = `
       <h3>🟢 Nauka</h3>
@@ -129,7 +138,7 @@ function render(){
     });
   }
 
-  // 🔹 QUIZ (POPRAWIONY)
+  // 🔹 QUIZ
   if(currentMode === "quiz"){
     const keys = Object.keys(braille);
 
@@ -196,7 +205,7 @@ Z - ⠵
   }
 }
 
-// 🔹 SPRAWDZANIE QUIZU
+// 🔹 SPRAWDZANIE
 function check(ans){
   speak(ans);
   if(ans === quizLetter){
