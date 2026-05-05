@@ -73,11 +73,42 @@ function render(){
 
   if(currentMode === "learn"){
     app.innerHTML = "<h3>🟢 Nauka</h3><p>Kliknij literę (usłyszysz ją):</p>";
-    Object.keys(braille).forEach(l=>{
-      app.innerHTML += `
-        <button onclick="showBig('${l}')"</button>
-      `;
-    });
+    if(currentMode === "learn"){
+  app.innerHTML = `
+    <h3>🟢 Nauka</h3>
+    <p>Kliknij literę:</p>
+
+    <button onclick="showBig('A')">A</button>
+    <button onclick="showBig('B')">B</button>
+    <button onclick="showBig('C')">C</button>
+    <button onclick="showBig('D')">D</button>
+    <button onclick="showBig('E')">E</button>
+    <button onclick="showBig('F')">F</button>
+    <button onclick="showBig('G')">G</button>
+    <button onclick="showBig('H')">H</button>
+    <button onclick="showBig('I')">I</button>
+    <button onclick="showBig('J')">J</button>
+
+    <button onclick="showBig('K')">K</button>
+    <button onclick="showBig('L')">L</button>
+    <button onclick="showBig('M')">M</button>
+    <button onclick="showBig('N')">N</button>
+    <button onclick="showBig('O')">O</button>
+    <button onclick="showBig('P')">P</button>
+    <button onclick="showBig('Q')">Q</button>
+    <button onclick="showBig('R')">R</button>
+    <button onclick="showBig('S')">S</button>
+    <button onclick="showBig('T')">T</button>
+
+    <button onclick="showBig('U')">U</button>
+    <button onclick="showBig('V')">V</button>
+    <button onclick="showBig('W')">W</button>
+    <button onclick="showBig('X')">X</button>
+    <button onclick="showBig('Y')">Y</button>
+    <button onclick="showBig('Z')">Z</button>
+  `;
+}
+      
   }
 
   if(currentMode === "practice"){
