@@ -50,17 +50,17 @@ K:"⠅",L:"⠇",M:"⠍",N:"⠝",O:"⠕",P:"⠏",Q:"⠟",R:"⠗",S:"⠎",T:"⠞",
 U:"⠥",V:"⠧",W:"⠺",X:"⠭",Y:"⠽",Z:"⠵"
 };
 
-// 🔊 POPRAWNA WYMOWA
+// 🔊 poprawna wymowa
 const speechMap = {
   A:"a", B:"be", C:"ce", D:"de", E:"e", F:"ef", G:"gie", H:"ha", I:"i", J:"jot",
   K:"ka", L:"el", M:"em", N:"en", O:"o", P:"pe", Q:"ku", R:"er", S:"es", T:"te",
-  U:"u", V:"fał", W:"wu", X:"iks", Y:"igrek", Z:"zet"
+  U:"u", V:"wu", W:"wu", X:"iks", Y:"igrek", Z:"zet"
 };
 
 let currentMode = "learn";
 let quizLetter = "";
 
-// 🔊 LEKTOR
+// 🔊 lektor
 function speak(text){
   const msg = new SpeechSynthesisUtterance(
     speechMap[text] ? speechMap[text] : text
@@ -74,7 +74,7 @@ function showMode(mode){
   render();
 }
 
-// 🔥 DUŻE WYŚWIETLANIE
+// 🔥 DUŻY WIDOK
 function showBig(letter){
   speak(letter);
   document.getElementById("app").innerHTML = `
@@ -125,17 +125,41 @@ function render(){
     `;
   }
 
-  // 🔹 ĆWICZENIA
+  // 🔹 ĆWICZENIA (takie same jak Nauka)
   if(currentMode === "practice"){
-    app.innerHTML = "<h3>🟡 Ćwiczenia</h3><p>Kliknij i sprawdź:</p>";
+    app.innerHTML = `
+      <h3>🟡 Ćwiczenia</h3>
+      <p>Kliknij literę:</p>
 
-    Object.keys(braille).forEach(l=>{
-      app.innerHTML += `
-        <button onclick="this.innerHTML='${l} = ${braille[l]}'; speak('${l}')">
-          ${l}
-        </button>
-      `;
-    });
+      <button onclick="showBig('A')">A</button>
+      <button onclick="showBig('B')">B</button>
+      <button onclick="showBig('C')">C</button>
+      <button onclick="showBig('D')">D</button>
+      <button onclick="showBig('E')">E</button>
+      <button onclick="showBig('F')">F</button>
+      <button onclick="showBig('G')">G</button>
+      <button onclick="showBig('H')">H</button>
+      <button onclick="showBig('I')">I</button>
+      <button onclick="showBig('J')">J</button>
+
+      <button onclick="showBig('K')">K</button>
+      <button onclick="showBig('L')">L</button>
+      <button onclick="showBig('M')">M</button>
+      <button onclick="showBig('N')">N</button>
+      <button onclick="showBig('O')">O</button>
+      <button onclick="showBig('P')">P</button>
+      <button onclick="showBig('Q')">Q</button>
+      <button onclick="showBig('R')">R</button>
+      <button onclick="showBig('S')">S</button>
+      <button onclick="showBig('T')">T</button>
+
+      <button onclick="showBig('U')">U</button>
+      <button onclick="showBig('V')">V</button>
+      <button onclick="showBig('W')">W</button>
+      <button onclick="showBig('X')">X</button>
+      <button onclick="showBig('Y')">Y</button>
+      <button onclick="showBig('Z')">Z</button>
+    `;
   }
 
   // 🔹 QUIZ
@@ -162,9 +186,7 @@ function render(){
     `;
 
     options.forEach(l=>{
-      app.innerHTML += `
-        <button onclick="check('${l}')">${l}</button>
-      `;
+      app.innerHTML += `<button onclick="check('${l}')">${l}</button>`;
     });
   }
 
