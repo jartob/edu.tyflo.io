@@ -12,20 +12,43 @@ body {
   margin: auto;
   padding: 10px;
   text-align: center;
+  background: #ffffff;
 }
+
 button {
   margin: 5px;
-  padding: 10px;
+  padding: 10px 15px;
   font-size: 20px;
   cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid #999;
+  background: #f2f2f2;
 }
+
+button:hover {
+  background: #e6e6e6;
+}
+
 .big {
   font-size: 80px;
   margin: 20px;
 }
+
 textarea {
   width: 100%;
-  height: 200px;
+  height: 220px;
+  font-size: 18px;
+}
+
+.wordwall-box {
+  margin-top: 20px;
+}
+
+.wordwall-box img {
+  border: 1px solid grey;
+  display: block;
+  margin: auto;
+  border-radius: 10px;
 }
 </style>
 </head>
@@ -44,157 +67,227 @@ textarea {
 <div id="app"></div>
 
 <script>
+
+// 🔹 ALFABET BRAILLE'A
 const braille = {
-A:"⠁",B:"⠃",C:"⠉",D:"⠙",E:"⠑",F:"⠋",G:"⠛",H:"⠓",I:"⠊",J:"⠚",
-K:"⠅",L:"⠇",M:"⠍",N:"⠝",O:"⠕",P:"⠏",Q:"⠟",R:"⠗",S:"⠎",T:"⠞",
-U:"⠥",V:"⠧",W:"⠺",X:"⠭",Y:"⠽",Z:"⠵"
+A:"⠁",B:"⠃",C:"⠉",D:"⠙",E:"⠑",
+F:"⠋",G:"⠛",H:"⠓",I:"⠊",J:"⠚",
+K:"⠅",L:"⠇",M:"⠍",N:"⠝",O:"⠕",
+P:"⠏",Q:"⠟",R:"⠗",S:"⠎",T:"⠞",
+U:"⠥",V:"⠧",W:"⠺",X:"⠭",Y:"⠽",
+Z:"⠵"
 };
 
-// 🔊 poprawna wymowa
+// 🔊 POPRAWNA WYMOWA
 const speechMap = {
-  A:"a", B:"be", C:"ce", D:"de", E:"e", F:"ef", G:"gie", H:"ha", I:"i", J:"jot",
-  K:"ka", L:"el", M:"em", N:"en", O:"o", P:"pe", Q:"ku", R:"er", S:"es", T:"te",
-  U:"u", V:"wu", W:"wu", X:"iks", Y:"igrek", Z:"zet"
+A:"a", B:"be", C:"ce", D:"de", E:"e",
+F:"ef", G:"gie", H:"ha", I:"i", J:"jot",
+K:"ka", L:"el", M:"em", N:"en", O:"o",
+P:"pe", Q:"ku", R:"er", S:"es", T:"te",
+U:"u", V:"wu", W:"wu", X:"iks",
+Y:"igrek", Z:"zet"
 };
 
 let currentMode = "learn";
 let quizLetter = "";
 
-// 🔊 lektor
+// 🔊 LEKTOR
 function speak(text){
   const msg = new SpeechSynthesisUtterance(
     speechMap[text] ? speechMap[text] : text
   );
+
   msg.lang = "pl-PL";
+  msg.rate = 0.9;
+
+  window.speechSynthesis.cancel();
   window.speechSynthesis.speak(msg);
 }
 
+// 🔹 ZMIANA TRYBU
 function showMode(mode){
   currentMode = mode;
   render();
 }
 
-// 🔥 DUŻY WIDOK
+// 🔹 DUŻE WYŚWIETLANIE
 function showBig(letter){
   speak(letter);
+
   document.getElementById("app").innerHTML = `
-    <h3>🟢 Nauka</h3>
+    <h3>🟢 Litera</h3>
+
     <div class="big">${letter}</div>
+
     <div class="big">${braille[letter]}</div>
+
     <button onclick="render()">⬅️ Wróć</button>
   `;
 }
 
+// 🔹 QUIZ - SPRAWDZANIE
+function check(ans){
+
+  speak(ans);
+
+  if(ans === quizLetter){
+
+    speak("Dobrze");
+
+    alert("✅ Dobrze!");
+
+    render();
+
+  } else {
+
+    speak("Spróbuj jeszcze raz");
+
+    alert("❌ Spróbuj jeszcze raz");
+  }
+}
+
+// 🔹 GŁÓWNE RENDEROWANIE
 function render(){
+
   const app = document.getElementById("app");
 
-  // 🔹 NAUKA
+  // =========================
+  // 🟢 NAUKA
+  // =========================
+
   if(currentMode === "learn"){
+
+    let letters = "";
+
+    Object.keys(braille).forEach(letter => {
+
+      letters += `
+        <button onclick="showBig('${letter}')">
+          ${letter}
+        </button>
+      `;
+    });
+
     app.innerHTML = `
       <h3>🟢 Nauka</h3>
+
       <p>Kliknij literę:</p>
 
-      <button onclick="showBig('A')">A</button>
-      <button onclick="showBig('B')">B</button>
-      <button onclick="showBig('C')">C</button>
-      <button onclick="showBig('D')">D</button>
-      <button onclick="showBig('E')">E</button>
-      <button onclick="showBig('F')">F</button>
-      <button onclick="showBig('G')">G</button>
-      <button onclick="showBig('H')">H</button>
-      <button onclick="showBig('I')">I</button>
-      <button onclick="showBig('J')">J</button>
-
-      <button onclick="showBig('K')">K</button>
-      <button onclick="showBig('L')">L</button>
-      <button onclick="showBig('M')">M</button>
-      <button onclick="showBig('N')">N</button>
-      <button onclick="showBig('O')">O</button>
-      <button onclick="showBig('P')">P</button>
-      <button onclick="showBig('Q')">Q</button>
-      <button onclick="showBig('R')">R</button>
-      <button onclick="showBig('S')">S</button>
-      <button onclick="showBig('T')">T</button>
-
-      <button onclick="showBig('U')">U</button>
-      <button onclick="showBig('V')">V</button>
-      <button onclick="showBig('W')">W</button>
-      <button onclick="showBig('X')">X</button>
-      <button onclick="showBig('Y')">Y</button>
-      <button onclick="showBig('Z')">Z</button>
+      ${letters}
     `;
   }
 
-  // 🔹 ĆWICZENIA (takie same jak Nauka)
+  // =========================
+  // 🟡 ĆWICZENIA
+  // =========================
+
   if(currentMode === "practice"){
+
+    let letters = "";
+
+    Object.keys(braille).forEach(letter => {
+
+      letters += `
+        <button onclick="showBig('${letter}')">
+          ${letter}
+        </button>
+      `;
+    });
+
     app.innerHTML = `
       <h3>🟡 Ćwiczenia</h3>
-      <p>Kliknij literę:</p>
 
-      <button onclick="showBig('A')">A</button>
-      <button onclick="showBig('B')">B</button>
-      <button onclick="showBig('C')">C</button>
-      <button onclick="showBig('D')">D</button>
-      <button onclick="showBig('E')">E</button>
-      <button onclick="showBig('F')">F</button>
-      <button onclick="showBig('G')">G</button>
-      <button onclick="showBig('H')">H</button>
-      <button onclick="showBig('I')">I</button>
-      <button onclick="showBig('J')">J</button>
+      <p>Ćwicz rozpoznawanie liter:</p>
 
-      <button onclick="showBig('K')">K</button>
-      <button onclick="showBig('L')">L</button>
-      <button onclick="showBig('M')">M</button>
-      <button onclick="showBig('N')">N</button>
-      <button onclick="showBig('O')">O</button>
-      <button onclick="showBig('P')">P</button>
-      <button onclick="showBig('Q')">Q</button>
-      <button onclick="showBig('R')">R</button>
-      <button onclick="showBig('S')">S</button>
-      <button onclick="showBig('T')">T</button>
-
-      <button onclick="showBig('U')">U</button>
-      <button onclick="showBig('V')">V</button>
-      <button onclick="showBig('W')">W</button>
-      <button onclick="showBig('X')">X</button>
-      <button onclick="showBig('Y')">Y</button>
-      <button onclick="showBig('Z')">Z</button>
+      ${letters}
     `;
   }
 
-  // 🔹 QUIZ
+  // =========================
+  // 🔵 QUIZ
+  // =========================
+
   if(currentMode === "quiz"){
+
     const keys = Object.keys(braille);
 
-    quizLetter = keys[Math.floor(Math.random()*keys.length)];
+    // losowanie poprawnej odpowiedzi
+    quizLetter = keys[Math.floor(Math.random() * keys.length)];
 
+    // odpowiedzi
     let options = [quizLetter];
 
     while(options.length < 4){
-      let rand = keys[Math.floor(Math.random()*keys.length)];
+
+      let rand =
+        keys[Math.floor(Math.random() * keys.length)];
+
       if(!options.includes(rand)){
         options.push(rand);
       }
     }
 
+    // mieszanie odpowiedzi
     options.sort(() => Math.random() - 0.5);
+
+    let buttons = "";
+
+    options.forEach(letter => {
+
+      buttons += `
+        <button onclick="check('${letter}')">
+          ${letter}
+        </button>
+      `;
+    });
 
     app.innerHTML = `
       <h3>🔵 Quiz</h3>
+
       <p>Co to za litera?</p>
-      <div style="font-size:60px; margin:20px">${braille[quizLetter]}</div>
+
+      <div class="big">
+        ${braille[quizLetter]}
+      </div>
+
+      ${buttons}
     `;
 
-    options.forEach(l=>{
-      app.innerHTML += `<button onclick="check('${l}')">${l}</button>`;
-    });
+    speak("Jaka to litera");
   }
 
-  // 🔹 WORDWALL
+  // =========================
+  // 🟣 WORDWALL
+  // =========================
+
   if(currentMode === "wordwall"){
+
     app.innerHTML = `
       <h3>🟣 Wordwall</h3>
-      <p>Skopiuj:</p>
+
+      <p>Gra Wordwall:</p>
+
+      <div class="wordwall-box">
+
+        <a target="_blank"
+           href="https://wordwall.net/pl/resource/112869231/nauka-alfabetu-braillea?ref=embed-image">
+
+          <img
+            src="https://screens.cdn.wordwall.net/200/f30adf8054094019bc96b36a97ab62d8_41"
+            width="200"
+            height="150"
+          />
+
+          <span>Nauka alfabetu Braille’a</span>
+
+        </a>
+
+      </div>
+
+      <br><br>
+
+      <h4>📋 Zestaw do kopiowania</h4>
+
       <textarea>
 A - ⠁
 B - ⠃
@@ -227,19 +320,9 @@ Z - ⠵
   }
 }
 
-// 🔹 SPRAWDZANIE
-function check(ans){
-  speak(ans);
-  if(ans === quizLetter){
-    speak("Dobrze");
-    alert("✅ Dobrze!");
-  } else {
-    speak("Spróbuj jeszcze raz");
-    alert("❌ Spróbuj jeszcze raz");
-  }
-}
-
+// START
 render();
+
 </script>
 
 </body>
